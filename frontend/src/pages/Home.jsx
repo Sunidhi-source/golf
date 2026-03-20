@@ -1,0 +1,87 @@
+import React from "react";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+
+const Home = () => {
+  return (
+    <div className="min-h-screen bg-[#020617] text-white pt-32 px-6 overflow-hidden">
+      {/* Background Decorative Glow for visibility */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
+
+      {/* Hero Section */}
+      <motion.section
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        className="text-center max-w-5xl mx-auto py-20 relative z-10"
+      >
+        <h1 className="text-5xl md:text-7xl font-black mb-8 leading-[1.1] tracking-tighter italic">
+          PLAY FOR <span className="text-cyan-400">GOOD.</span>
+          <br />
+          WIN FOR{" "}
+          <span className="bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+            ALL.
+          </span>
+        </h1>
+
+        <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
+          The modern golf subscription that fuels world-changing charities while
+          giving you a chance at massive monthly prize pools. [cite: 7]
+        </p>
+
+        <Link to="/pricing">
+          <button className="bg-cyan-500 text-black px-12 py-5 rounded-2xl font-black text-xl hover:bg-cyan-400 hover:scale-105 transition-all shadow-[0_0_30px_rgba(6,182,212,0.4)] uppercase tracking-tight">
+            Start Your Impact
+          </button>
+        </Link>
+      </motion.section>
+
+      {/* Feature Grid - Enhanced Contrast */}
+      <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto pb-32 relative z-10">
+        {/* Charity Feature */}
+        <div className="p-10 bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-[2.5rem] hover:border-cyan-500/50 transition-colors">
+          <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-6">
+            <span className="text-cyan-400 font-bold">10%</span>
+          </div>
+          <h3 className="text-white text-2xl font-black mb-4 tracking-tight">
+            Minimum Impact
+          </h3>
+          <p className="text-slate-400 leading-relaxed font-medium">
+            Every subscription goes directly to a charity of your choice. [cite:
+            77]
+          </p>
+        </div>
+
+        {/* Draw Feature - "Best Value" Focus */}
+        <div className="p-10 bg-slate-900/60 backdrop-blur-md border-2 border-cyan-500/30 rounded-[2.5rem] shadow-2xl scale-105 relative">
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-cyan-500 text-black text-[10px] px-4 py-1 rounded-full font-black uppercase tracking-widest">
+            Reward Engine
+          </div>
+          <h3 className="text-cyan-400 text-2xl font-black mb-4 tracking-tight">
+            Monthly Draws
+          </h3>
+          <p className="text-slate-300 leading-relaxed font-medium">
+            Three tiers of prize pools including a massive 5-Match Jackpot.
+            [cite: 70]
+          </p>
+        </div>
+
+        {/* Scores Feature */}
+        <div className="p-10 bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-[2.5rem] hover:border-cyan-500/50 transition-colors">
+          <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-6">
+            <span className="text-white font-bold">5</span>
+          </div>
+          <h3 className="text-white text-2xl font-black mb-4 tracking-tight">
+            Rolling Scores
+          </h3>
+          <p className="text-slate-400 leading-relaxed font-medium">
+            Simple 5-score tracking system to enter the rewards engine. [cite:
+            44]
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Home;
