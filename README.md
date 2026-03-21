@@ -1,5 +1,3 @@
-cat << 'EOF' > README.md
-
 # ⛳ Digital Heroes: Golf Charity Subscription Platform
 
 ### _Premium Full-Stack Trainee Selection Assignment_
@@ -70,7 +68,8 @@ A modern, subscription-driven web application that disrupts traditional golf aes
 
 1. Create a `.env` in the `/backend` directory.
 2. Required Keys:
-   bash ```
+
+```
    PORT=5000
    STRIPE_PUBLISHABLE_KEY=''
    STRIPE_SECRET_KEY=''
@@ -82,21 +81,23 @@ A modern, subscription-driven web application that disrupts traditional golf aes
    STRIPE_WEBHOOK_SECRET=''
    SUPABASE_KEY=''
 
-````
+```
 
 3. The backend uses the `dotenv` package to load variables into `process.env`.
 
 ### Frontend Setup
+
 1. Create a `.env` in the `/frontend` directory.
 2. Required Keys:
-bash ```
+
+```
   REACT_APP_SUPABASE_URL=''
   REACT_APP_SUPABASE_ANON_KEY=''
   REACT_APP_API_URL=backend_url
 
   REACT_APP_ADMIN_EMAIL=admin@123.com
   REACT_APP_ADMIN_PASSWORD=hero123
-````
+```
 
 3. Note: All frontend variables are prefixed with `REACT_APP_` to be accessible within the React build.
 
