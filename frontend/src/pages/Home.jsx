@@ -5,10 +5,8 @@ import { motion } from "framer-motion";
 const Home = () => {
   return (
     <div className="min-h-screen bg-[#020617] text-white pt-32 px-6 overflow-hidden">
-      {/* Background Decorative Glow for visibility */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-cyan-500/10 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Hero Section */}
       <motion.section
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -36,9 +34,7 @@ const Home = () => {
         </Link>
       </motion.section>
 
-      {/* Feature Grid - Enhanced Contrast */}
       <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto pb-32 relative z-10">
-        {/* Charity Feature */}
         <div className="p-10 bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-[2.5rem] hover:border-cyan-500/50 transition-colors">
           <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-6">
             <span className="text-cyan-400 font-bold">10%</span>
@@ -52,7 +48,6 @@ const Home = () => {
           </p>
         </div>
 
-        {/* Draw Feature - "Best Value" Focus */}
         <div className="p-10 bg-slate-900/60 backdrop-blur-md border-2 border-cyan-500/30 rounded-[2.5rem] shadow-2xl scale-105 relative">
           <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-cyan-500 text-black text-[10px] px-4 py-1 rounded-full font-black uppercase tracking-widest">
             Reward Engine
@@ -66,7 +61,6 @@ const Home = () => {
           </p>
         </div>
 
-        {/* Scores Feature */}
         <div className="p-10 bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-[2.5rem] hover:border-cyan-500/50 transition-colors">
           <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-6">
             <span className="text-white font-bold">5</span>

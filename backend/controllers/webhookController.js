@@ -12,7 +12,6 @@ exports.handleStripeWebhook = async (req, res) => {
   let event;
 
   try {
-    // Verify the event came from Stripe (Security) [cite: 125]
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
@@ -22,20 +21,17 @@ exports.handleStripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // If payment is successful
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
 
-    // Extract data we sent in "metadata" during signup
     const { charityId, charityPercent } = session.metadata;
     const userEmail = session.customer_details.email;
 
-    // UPDATE SUPABASE [cite: 135]
     const { error } = await supabase
       .from("profiles")
       .update({
-        subscription_status: "active", // PRD Section 10 [cite: 89]
-        charity_id: charityId, // PRD Section 08 [cite: 76]
+        subscription_status: "active",
+        charity_id: charityId,
         charity_percent: charityPercent,
       })
       .eq("email", userEmail);

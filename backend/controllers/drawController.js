@@ -8,9 +8,8 @@ const supabase = createClient(
 
 exports.executeDraw = async (req, res) => {
   try {
-    const { type } = req.body; // 'random' or 'algorithmic' [cite: 56]
+    const { type } = req.body;
 
-    // --- PART 1: GENERATE NUMBERS ---
     let winningNumbers = [];
     if (type === "random") {
       while (winningNumbers.length < 5) {
@@ -18,11 +17,9 @@ exports.executeDraw = async (req, res) => {
         if (!winningNumbers.includes(num)) winningNumbers.push(num);
       }
     } else {
-      // Algorithmic: Weighted by most frequent user scores [cite: 59]
       winningNumbers = [18, 22, 31, 15, 40];
     }
 
-    // --- PART 2: FIND WINNERS (Your Logic) ---
     const { data: users, error } = await supabase
       .from("profiles")
       .select("id, email, subscription_status, scores(score_value)")
@@ -38,7 +35,6 @@ exports.executeDraw = async (req, res) => {
         winningNumbers.includes(score),
       ).length;
 
-      // PRD Prize Pool Logic [cite: 70]
       if (matches === 5) winners.tier5.push(user.id);
       else if (matches === 4) winners.tier4.push(user.id);
       else if (matches === 3) winners.tier3.push(user.id);

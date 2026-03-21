@@ -8,7 +8,6 @@ const supabase = createClient(
 exports.addScore = async (req, res) => {
   const { userId, scoreValue } = req.body;
 
-  // PRD Requirement: Score range 1-45 [cite: 45]
   if (scoreValue < 1 || scoreValue > 45) {
     return res.status(400).json({ error: "Score must be between 1 and 45" });
   }
@@ -22,7 +21,6 @@ exports.addScore = async (req, res) => {
 };
 
 exports.getScores = async (req, res) => {
-  // PRD Requirement: Reverse chronological order [cite: 50]
   const { data, error } = await supabase
     .from("scores")
     .select("*")

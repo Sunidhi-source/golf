@@ -8,7 +8,6 @@ const AdminPanel = () => {
   const [simulationResult, setSimulationResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Data States
   const [users, setUsers] = useState([]);
   const [charities, setCharities] = useState([]);
   const [stats, setStats] = useState({ totalPool: 0, charityTotal: 0 });
@@ -20,28 +19,25 @@ const AdminPanel = () => {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Users (Section 11) [cite: 98]
       const { data: userData, error: userError } = await supabase
         .from("profiles")
         .select("*");
       if (userError) throw userError;
       setUsers(userData || []);
 
-      // 2. Fetch Charities (Section 11) [cite: 106]
       const { data: charityData, error: charityError } = await supabase
         .from("charities")
         .select("*");
       if (charityError) throw charityError;
       setCharities(charityData || []);
 
-      // 3. Auto-calculation of Pool (Section 07) [cite: 71]
       const activeSubs =
         userData?.filter((u) => u.subscription_status === "active").length || 0;
-      const currentPool = activeSubs * 19; // Monthly plan base [cite: 41]
+      const currentPool = activeSubs * 19;
 
       setStats({
         totalPool: currentPool,
-        charityTotal: currentPool * 0.1, // 10% Minimum [cite: 77]
+        charityTotal: currentPool * 0.1,
       });
     } catch (err) {
       console.error("Error fetching admin data:", err.message);
@@ -52,7 +48,6 @@ const AdminPanel = () => {
 
   const runSimulation = () => {
     setLoading(true);
-    // Simulate Draw Logic (Section 06) [cite: 56, 63]
     setTimeout(() => {
       setSimulationResult({
         winningNumbers: Array.from(
@@ -60,20 +55,19 @@ const AdminPanel = () => {
           () => Math.floor(Math.random() * 45) + 1,
         ),
         poolDistribution: {
-          tier5: stats.totalPool * 0.4, // 40% [cite: 70]
-          tier4: stats.totalPool * 0.35, // 35% [cite: 70]
-          tier3: stats.totalPool * 0.25, // 25% [cite: 70]
+          tier5: stats.totalPool * 0.4,
+          tier4: stats.totalPool * 0.35,
+          tier3: stats.totalPool * 0.25,
         },
       });
       setLoading(false);
     }, 1000);
   };
 
-  // Section 09: Winner Verification [cite: 85, 112]
   const handleVerifyWinner = async (userId, status) => {
     const { error } = await supabase
       .from("profiles")
-      .update({ payout_status: status }) // Pending -> Paid [cite: 85]
+      .update({ payout_status: status })
       .eq("id", userId);
 
     if (!error) fetchAdminData();
@@ -81,7 +75,6 @@ const AdminPanel = () => {
 
   return (
     <div className="pt-28 pb-20 px-8 max-w-7xl mx-auto min-h-screen bg-[#020617] text-white">
-      {/* HEADER & ANALYTICS [cite: 113] */}
       <div className="flex justify-between items-end mb-12">
         <div>
           <h1 className="text-5xl font-black italic tracking-tighter uppercase">
@@ -111,7 +104,6 @@ const AdminPanel = () => {
         </div>
       </div>
 
-      {/* TABS [cite: 97] */}
       <div className="flex gap-4 mb-10 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 w-fit">
         {["draws", "users", "charities"].map((tab) => (
           <button
@@ -129,7 +121,6 @@ const AdminPanel = () => {
       </div>
 
       <AnimatePresence mode="wait">
-        {/* DRAW ENGINE (Section 06) [cite: 51] */}
         {activeTab === "draws" && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -220,7 +211,6 @@ const AdminPanel = () => {
           </motion.div>
         )}
 
-        {/* USER LIST (Section 11) [cite: 98] */}
         {activeTab === "users" && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -275,7 +265,6 @@ const AdminPanel = () => {
           </motion.div>
         )}
 
-        {/* CHARITY MANAGEMENT (Section 11) [cite: 106] */}
         {activeTab === "charities" && (
           <motion.div
             initial={{ opacity: 0 }}

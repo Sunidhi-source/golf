@@ -51,7 +51,6 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen pt-24 pb-12 bg-[#020617] flex flex-col items-center justify-center px-4 relative overflow-hidden">
-      {/* Background Decorative Glow */}
       <div className="absolute w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] rounded-full -top-24 -left-24 pointer-events-none" />
 
       <div className="text-center mb-10 z-10">
@@ -94,7 +93,6 @@ const Signup = () => {
             className="max-w-lg w-full p-10 bg-slate-900/50 backdrop-blur-2xl rounded-[3rem] border border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-10"
           >
             <form onSubmit={handleSignup} className="space-y-8">
-              {/* Email Input */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 ml-2 uppercase tracking-[0.2em]">
                   Account Email
@@ -110,7 +108,6 @@ const Signup = () => {
                 />
               </div>
 
-              {/* Charity Select */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 ml-2 uppercase tracking-[0.2em]">
                   Select Charity
@@ -142,7 +139,6 @@ const Signup = () => {
                 </div>
               </div>
 
-              {/* Contribution Slider */}
               <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800/50 group">
                 <div className="flex justify-between items-center mb-6">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
@@ -171,7 +167,6 @@ const Signup = () => {
                 </div>
               </div>
 
-              {/* Navigation Buttons */}
               <div className="flex gap-4 pt-4">
                 <button
                   type="button"

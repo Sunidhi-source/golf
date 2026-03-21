@@ -14,7 +14,6 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
 
-    // Ensure this matches your Supabase user EXACTLY
     const ADMIN_EMAIL = "admin@123.com";
 
     try {
@@ -31,7 +30,6 @@ const Login = () => {
       if (isSignup) {
         navigate("/dashboard");
       } else {
-        // REMOVED THE PASSWORD CHECK: Supabase already verified it!
         if (data.user.email === ADMIN_EMAIL) {
           console.log("Admin Access Granted");
           navigate("/admin");
@@ -48,7 +46,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#020617] px-4 selection:bg-cyan-500/30">
-      {/* Background Decorative Glow */}
       <div className="absolute w-96 h-96 bg-cyan-500/10 blur-[100px] rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
       <motion.div

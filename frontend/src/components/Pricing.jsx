@@ -4,7 +4,6 @@ import { supabase } from "../supabaseClient";
 const Pricing = () => {
   const handleSubscribe = async (planType) => {
     try {
-      // 1. Get the current user session from Supabase
       const {
         data: { session },
         error: sessionError,
@@ -15,7 +14,6 @@ const Pricing = () => {
         return (window.location.href = "/login");
       }
 
-      // 2. Trigger the Backend Checkout Session
       const response = await fetch(
         "https://golf-u6ol.onrender.com/api/payments/create",
         {
@@ -31,7 +29,6 @@ const Pricing = () => {
 
       const data = await response.json();
 
-      // 3. Handle the Redirect
       if (data.url) {
         window.location.href = data.url;
       } else {
@@ -54,7 +51,6 @@ const Pricing = () => {
         </h1>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          {/* Monthly Card */}
           <div className="p-10 bg-slate-900/50 border border-slate-800 rounded-[2.5rem] hover:border-cyan-400 transition-all group">
             <h3 className="text-2xl font-bold">Monthly Impact</h3>
             <p className="text-5xl font-black my-6 text-cyan-400">
@@ -68,7 +64,6 @@ const Pricing = () => {
             </button>
           </div>
 
-          {/* Yearly Card */}
           <div className="p-10 bg-slate-900/50 border-2 border-cyan-500/30 rounded-[2.5rem] relative overflow-hidden group">
             <div className="absolute top-0 right-0 bg-cyan-500 text-black text-[10px] px-4 py-1 rounded-bl-xl uppercase font-black">
               Best Value

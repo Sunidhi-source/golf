@@ -6,7 +6,6 @@ const supabase = createClient(
   process.env.SUPABASE_KEY,
 );
 
-// Fetch all charities for the signup dropdown
 exports.getAllCharities = async (req, res) => {
   const { data, error } = await supabase.from("charities").select("*");
 
@@ -14,7 +13,6 @@ exports.getAllCharities = async (req, res) => {
   res.status(200).json(data);
 };
 
-// Fetch featured charities for the homepage (PRD requirement)
 exports.getFeaturedCharities = async (req, res) => {
   const { data, error } = await supabase
     .from("charities")

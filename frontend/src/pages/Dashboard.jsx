@@ -60,7 +60,7 @@ const Dashboard = () => {
 
       if (response.ok) {
         setNewScore("");
-        fetchUserData(user.id); // Refresh to show the new rolling list
+        fetchUserData(user.id);
       }
     } catch (err) {
       alert("Submission failed.");
@@ -77,7 +77,6 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-[#020617] text-white pt-32 pb-20 px-8">
       <div className="max-w-6xl mx-auto">
-        {/* SECTION 08: CHARITY IMPACT BANNER [cite: 77, 83] */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -108,7 +107,6 @@ const Dashboard = () => {
         </motion.div>
 
         <div className="grid lg:grid-cols-3 gap-12">
-          {/* LEFT: SCORE ENTRY [cite: 44, 45] */}
           <div
             className={`${profile?.subscription_status !== "active" ? "opacity-20 grayscale pointer-events-none" : ""}`}
           >
@@ -135,7 +133,6 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* RIGHT: ROLLING 5 HISTORY [cite: 48, 50] */}
           <div className="lg:col-span-2">
             <div className="flex justify-between items-end mb-4">
               <h2 className="text-sm font-mono text-slate-500 uppercase tracking-widest">
@@ -170,7 +167,6 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* SECTION 10: WINNINGS OVERVIEW [cite: 96] */}
             <div className="mt-12 grid grid-cols-2 gap-6">
               <div className="bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-800">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">

@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }) => {
     checkAdmin();
   }, []);
 
-  if (isAdmin === null) return <div className="bg-[#020617] h-screen"></div>; // Loading
+  if (isAdmin === null) return <div className="bg-[#020617] h-screen"></div>;
   return isAdmin ? children : <Navigate to="/" />;
 };
 

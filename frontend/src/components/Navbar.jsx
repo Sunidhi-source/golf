@@ -6,11 +6,9 @@ const Navbar = () => {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
-  // CHANGE THIS TO YOUR ACTUAL ADMIN EMAIL
   const ADMIN_EMAIL = "your-email@example.com";
 
   useEffect(() => {
-    // Check initial session
     const getSession = async () => {
       const {
         data: { session },
@@ -19,7 +17,6 @@ const Navbar = () => {
     };
     getSession();
 
-    // Listen for auth changes (login/logout)
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null);
@@ -39,7 +36,6 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-[#020617]/80 backdrop-blur-xl border-b border-white/5">
       <div className="max-w-7xl mx-auto px-8 h-20 flex justify-between items-center">
-        {/* Logo Section */}
         <Link
           to="/"
           className="text-2xl font-black tracking-tighter italic text-white group"
@@ -50,7 +46,6 @@ const Navbar = () => {
           </span>
         </Link>
 
-        {/* Navigation Links */}
         <div className="flex items-center space-x-8 font-medium text-sm">
           <Link
             to="/"
@@ -66,7 +61,6 @@ const Navbar = () => {
             My Impact
           </Link>
 
-          {/* DYNAMIC ADMIN LINK: Only shows if YOU are logged in */}
           {user?.email === ADMIN_EMAIL && (
             <Link
               to="/admin"
@@ -76,7 +70,6 @@ const Navbar = () => {
             </Link>
           )}
 
-          {/* DYNAMIC AUTH BUTTON */}
           {user ? (
             <button
               onClick={handleLogout}

@@ -8,11 +8,9 @@ const SignupPage = () => {
 
   return (
     <div className="pt-32 pb-20 bg-[#020617] min-h-screen relative overflow-hidden">
-      {/* Cinematic Background Elements */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[500px] bg-gradient-to-b from-cyan-500/10 to-transparent pointer-events-none" />
       <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Step Indicator */}
       <div className="max-w-md mx-auto mb-12 px-6 relative z-10">
         <div className="flex items-center justify-between">
           <div className="flex flex-col items-center gap-2">
@@ -57,7 +55,6 @@ const SignupPage = () => {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
             >
-              {/* Step 1: User picks a plan */}
               <Pricing onSelectPlan={(plan) => setSelectedPlan(plan)} />
             </motion.div>
           ) : (
@@ -69,14 +66,12 @@ const SignupPage = () => {
               transition={{ duration: 0.4, type: "spring", stiffness: 100 }}
               className="flex justify-center"
             >
-              {/* Step 2: User fills details (Plan is passed in) */}
               <Signup plan={selectedPlan} />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Footer Branding */}
       <div className="mt-20 text-center opacity-30">
         <p className="text-white font-black italic tracking-tighter text-xl">
           HEROES <span className="text-cyan-500 text-sm">PRO</span>
