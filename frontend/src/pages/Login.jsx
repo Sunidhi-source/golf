@@ -12,20 +12,21 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const ADMIN_EMAIL = process.env.REACT_APP_ADMIN_EMAIL;
+  const ADMIN_EMAIL = process.env.REACT_APP_ADMIN_EMAIL; // never hardcode credentials
 
   const handleAuth = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (isSignup && password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
+    if (isSignup) {
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
     }
 
     setLoading(true);
@@ -40,15 +41,11 @@ const Login = () => {
       }
 
       if (isSignup) {
-        navigate("/pricing");
+        navigate("/pricing"); // new users go straight to subscribing
       } else {
-        if (data.user?.email === ADMIN_EMAIL) {
-          navigate("/admin");
-        } else {
-          navigate("/dashboard");
-        }
+        navigate(data.user?.email === ADMIN_EMAIL ? "/admin" : "/dashboard");
       }
-    } catch (err) {
+    } catch {
       setError("Authentication failed. Please try again.");
     } finally {
       setLoading(false);
@@ -67,7 +64,7 @@ const Login = () => {
         <div className="text-center mb-10">
           <h2 className="text-4xl font-black mb-3 tracking-tight text-white">
             {isSignup ? "Join the " : "Welcome "}
-            <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent italic tracking-tighter">
+            <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent italic">
               HEROES
             </span>
           </h2>
@@ -78,6 +75,7 @@ const Login = () => {
           </p>
         </div>
 
+        {/* Inline error — no alert() calls */}
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm font-medium">
             {error}
@@ -93,9 +91,9 @@ const Login = () => {
               type="email"
               placeholder="name@company.com"
               required
-              className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-2xl outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 text-white transition-all placeholder:text-slate-600"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-2xl outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 text-white transition-all placeholder:text-slate-600"
             />
           </div>
 
@@ -108,9 +106,9 @@ const Login = () => {
               placeholder="••••••••"
               required
               minLength={6}
-              className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-2xl outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 text-white transition-all placeholder:text-slate-600"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-2xl outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 text-white transition-all placeholder:text-slate-600"
             />
           </div>
 
@@ -123,20 +121,20 @@ const Login = () => {
                 type="password"
                 placeholder="••••••••"
                 required
-                className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-2xl outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 text-white transition-all placeholder:text-slate-600"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-2xl outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 text-white transition-all placeholder:text-slate-600"
               />
             </div>
           )}
 
           <button
-            disabled={loading}
             type="submit"
-            className="w-full relative group overflow-hidden py-4 bg-gradient-to-br from-cyan-400 to-blue-600 text-black font-black rounded-2xl hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all active:scale-[0.98] disabled:opacity-70"
+            disabled={loading}
+            className="w-full py-4 bg-gradient-to-br from-cyan-400 to-blue-600 text-black font-black rounded-2xl hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all active:scale-[0.98] disabled:opacity-70"
           >
             {loading
-              ? "Authorizing..."
+              ? "Authorizing…"
               : isSignup
                 ? "Create Hero Account"
                 : "Enter Portal"}
@@ -145,7 +143,7 @@ const Login = () => {
 
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-800"></div>
+            <div className="w-full border-t border-slate-800" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-[#0f172a] px-2 text-slate-500">

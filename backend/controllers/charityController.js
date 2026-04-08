@@ -9,30 +9,34 @@ const supabase = createClient(
 exports.getAllCharities = async (req, res) => {
   const { data, error } = await supabase
     .from("charities")
-    .select("*")
+    .select("id, name, description, is_featured, created_at")
     .order("name", { ascending: true });
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error("getAllCharities error:", error.message);
+    return res.status(500).json({ error: error.message });
+  }
   return res.status(200).json(data);
 };
 
 exports.getFeaturedCharities = async (req, res) => {
   const { data, error } = await supabase
     .from("charities")
-    .select("*")
+    .select("id, name, description, is_featured")
     .eq("is_featured", true);
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error("getFeaturedCharities error:", error.message);
+    return res.status(500).json({ error: error.message });
+  }
   return res.status(200).json(data);
 };
 
 exports.createCharity = async (req, res) => {
   const { name, description, is_featured } = req.body;
-
-  if (!name || !name.trim()) {
+  if (!name?.trim()) {
     return res.status(400).json({ error: "Charity name is required." });
   }
-
   const { data, error } = await supabase
     .from("charities")
     .insert([
@@ -45,14 +49,16 @@ exports.createCharity = async (req, res) => {
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error("createCharity error:", error.message);
+    return res.status(500).json({ error: error.message });
+  }
   return res.status(201).json(data);
 };
 
 exports.updateCharity = async (req, res) => {
   const { charityId } = req.params;
   const { name, description, is_featured } = req.body;
-
   const { data, error } = await supabase
     .from("charities")
     .update({ name, description, is_featured })
@@ -60,18 +66,22 @@ exports.updateCharity = async (req, res) => {
     .select()
     .single();
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error("updateCharity error:", error.message);
+    return res.status(500).json({ error: error.message });
+  }
   return res.status(200).json(data);
 };
 
 exports.deleteCharity = async (req, res) => {
   const { charityId } = req.params;
-
   const { error } = await supabase
     .from("charities")
     .delete()
     .eq("id", charityId);
-
-  if (error) return res.status(500).json({ error: error.message });
-  return res.status(200).json({ message: "Charity deleted successfully." });
+  if (error) {
+    console.error("deleteCharity error:", error.message);
+    return res.status(500).json({ error: error.message });
+  }
+  return res.status(200).json({ message: "Charity deleted." });
 };

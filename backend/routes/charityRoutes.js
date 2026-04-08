@@ -1,12 +1,11 @@
 const express = require("express");
 const router = express.Router();
-const charityController = require("../controllers/charityController");
+const charCtrl = require("../controllers/charityController");
 
-router.get("/", charityController.getAllCharities);
-router.get("/featured", charityController.getFeaturedCharities);
-
-router.post("/", charityController.createCharity);
-router.put("/:charityId", charityController.updateCharity);
-router.delete("/:charityId", charityController.deleteCharity);
+router.get("/", charCtrl.getAllCharities);
+router.get("/featured", charCtrl.getFeaturedCharities);
+router.post("/", charCtrl.createCharity);
+router.put("/:charityId", charCtrl.updateCharity);
+router.delete("/:charityId", charCtrl.deleteCharity);
 
 module.exports = router;

@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const drawController = require("../controllers/drawController");
+const drawCtrl = require("../controllers/drawController");
 
-router.post("/simulate", drawController.executeDraw);
-router.post("/publish", drawController.publishDraw);
+router.post("/simulate", drawCtrl.executeDraw);
+router.post("/publish", drawCtrl.publishDraw);
 
 module.exports = router;
