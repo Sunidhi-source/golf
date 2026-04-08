@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Pricing from "./Pricing";
 
+const API = process.env.REACT_APP_API_URL;
+
 const Signup = () => {
   const [charities, setCharities] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -14,9 +16,9 @@ const Signup = () => {
   });
 
   useEffect(() => {
-    fetch("https://golf-u6ol.onrender.com/api/charities")
+    fetch(`${API}/api/charities`)
       .then((res) => res.json())
-      .then((data) => setCharities(data))
+      .then((data) => setCharities(data || []))
       .catch((err) => console.error("Error fetching charities:", err));
   }, []);
 
@@ -26,20 +28,17 @@ const Signup = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        "https://golf-u6ol.onrender.com/api/payments/create",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        },
-      );
+      const response = await fetch(`${API}/api/payments/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-      const { url } = await response.json();
+      const { url, error } = await response.json();
       if (url) {
         window.location.href = url;
       } else {
-        alert("Failed to create payment session.");
+        alert(`Payment error: ${error || "Please try again."}`);
       }
     } catch (err) {
       console.error("Signup failed", err);
@@ -139,7 +138,7 @@ const Signup = () => {
                 </div>
               </div>
 
-              <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800/50 group">
+              <div className="p-6 bg-slate-950/50 rounded-3xl border border-slate-800/50">
                 <div className="flex justify-between items-center mb-6">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-[0.15em]">
                     Your Donation %
@@ -152,9 +151,13 @@ const Signup = () => {
                   type="range"
                   min="10"
                   max="100"
-                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400 hover:accent-cyan-300 transition-all"
+                  value={formData.percent}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
                   onChange={(e) =>
-                    setFormData({ ...formData, percent: e.target.value })
+                    setFormData({
+                      ...formData,
+                      percent: Number(e.target.value),
+                    })
                   }
                 />
                 <div className="flex justify-between mt-3">
@@ -180,7 +183,7 @@ const Signup = () => {
                   type="submit"
                   className="flex-1 py-4 bg-gradient-to-r from-cyan-400 to-blue-600 text-black font-black rounded-2xl hover:shadow-[0_0_25px_rgba(34,211,238,0.4)] hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
                 >
-                  {loading ? "PROCESSING..." : "GET STARTED"}
+                  {loading ? "Processing..." : "Get Started"}
                 </button>
               </div>
             </form>

@@ -24,7 +24,7 @@ const Home = () => {
 
         <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
           The modern golf subscription that fuels world-changing charities while
-          giving you a chance at massive monthly prize pools. [cite: 7]
+          giving you a chance at massive monthly prize pools.
         </p>
 
         <Link to="/pricing">
@@ -43,8 +43,7 @@ const Home = () => {
             Minimum Impact
           </h3>
           <p className="text-slate-400 leading-relaxed font-medium">
-            Every subscription goes directly to a charity of your choice. [cite:
-            77]
+            Every subscription goes directly to a charity of your choice.
           </p>
         </div>
 
@@ -57,7 +56,6 @@ const Home = () => {
           </h3>
           <p className="text-slate-300 leading-relaxed font-medium">
             Three tiers of prize pools including a massive 5-Match Jackpot.
-            [cite: 70]
           </p>
         </div>
 
@@ -69,12 +67,54 @@ const Home = () => {
             Rolling Scores
           </h3>
           <p className="text-slate-400 leading-relaxed font-medium">
-            Simple 5-score tracking system to enter the rewards engine. [cite:
-            44]
+            Simple 5-score tracking system to enter the rewards engine.
           </p>
         </div>
       </div>
+
+      <FeaturedCharity />
     </div>
+  );
+};
+
+const FeaturedCharity = () => {
+  const [featured, setFeatured] = React.useState(null);
+  const API = process.env.REACT_APP_API_URL;
+
+  React.useEffect(() => {
+    fetch(`${API}/api/charities/featured`)
+      .then((r) => r.json())
+      .then((data) => setFeatured(data[0] || null))
+      .catch(() => {});
+  }, [API]);
+
+  if (!featured) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-6xl mx-auto pb-20 relative z-10"
+    >
+      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400 mb-4 text-center">
+        Spotlight Charity
+      </p>
+      <div className="p-10 bg-gradient-to-r from-cyan-600/10 to-blue-600/10 border border-cyan-500/20 rounded-[2.5rem] flex flex-col md:flex-row items-center gap-8">
+        <div className="flex-1">
+          <h3 className="text-3xl font-black text-white mb-3">
+            {featured.name}
+          </h3>
+          <p className="text-slate-400 leading-relaxed">
+            {featured.description}
+          </p>
+        </div>
+        <Link to="/pricing">
+          <button className="bg-cyan-500 text-black px-8 py-4 rounded-2xl font-black hover:bg-cyan-400 transition-all whitespace-nowrap">
+            Support This Cause
+          </button>
+        </Link>
+      </div>
+    </motion.div>
   );
 };
 

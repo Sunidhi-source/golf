@@ -7,39 +7,50 @@ const Login = () => {
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  const ADMIN_EMAIL = process.env.REACT_APP_ADMIN_EMAIL;
 
   const handleAuth = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (isSignup && password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
     setLoading(true);
-
-    const ADMIN_EMAIL = "admin@123.com";
-
     try {
-      const { data, error } = isSignup
+      const { data, error: authError } = isSignup
         ? await supabase.auth.signUp({ email, password })
         : await supabase.auth.signInWithPassword({ email, password });
 
-      if (error) {
-        alert(error.message);
-        setLoading(false);
+      if (authError) {
+        setError(authError.message);
         return;
       }
 
       if (isSignup) {
-        navigate("/dashboard");
+        navigate("/pricing");
       } else {
-        if (data.user.email === ADMIN_EMAIL) {
-          console.log("Admin Access Granted");
+        if (data.user?.email === ADMIN_EMAIL) {
           navigate("/admin");
         } else {
-          console.log("Standard User Access");
           navigate("/dashboard");
         }
       }
     } catch (err) {
-      alert("Authentication failed.");
+      setError("Authentication failed. Please try again.");
+    } finally {
       setLoading(false);
     }
   };
@@ -67,6 +78,12 @@ const Login = () => {
           </p>
         </div>
 
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm font-medium">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleAuth} className="space-y-5">
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 ml-2 uppercase tracking-widest">
@@ -90,23 +107,39 @@ const Login = () => {
               type="password"
               placeholder="••••••••"
               required
+              minLength={6}
               className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-2xl outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 text-white transition-all placeholder:text-slate-600"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
+          {isSignup && (
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 ml-2 uppercase tracking-widest">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                required
+                className="w-full p-4 bg-slate-950/50 border border-slate-700 rounded-2xl outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 text-white transition-all placeholder:text-slate-600"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          )}
+
           <button
             disabled={loading}
+            type="submit"
             className="w-full relative group overflow-hidden py-4 bg-gradient-to-br from-cyan-400 to-blue-600 text-black font-black rounded-2xl hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] transition-all active:scale-[0.98] disabled:opacity-70"
           >
-            <span className="relative z-10 flex items-center justify-center gap-2">
-              {loading
-                ? "Authorizing..."
-                : isSignup
-                  ? "Create Hero Account"
-                  : "Enter Portal"}
-            </span>
+            {loading
+              ? "Authorizing..."
+              : isSignup
+                ? "Create Hero Account"
+                : "Enter Portal"}
           </button>
         </form>
 
@@ -116,13 +149,16 @@ const Login = () => {
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-[#0f172a] px-2 text-slate-500">
-              Identity Verification
+              {isSignup ? "Already a member?" : "New here?"}
             </span>
           </div>
         </div>
 
         <button
-          onClick={() => setIsSignup(!isSignup)}
+          onClick={() => {
+            setIsSignup(!isSignup);
+            setError("");
+          }}
           className="w-full text-sm font-semibold text-slate-400 hover:text-cyan-400 transition-colors"
         >
           {isSignup
