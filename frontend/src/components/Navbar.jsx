@@ -7,7 +7,6 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Read admin email from env — never hardcode credentials in source files
   const ADMIN_EMAIL = process.env.REACT_APP_ADMIN_EMAIL;
   const isAdmin = user?.email === ADMIN_EMAIL;
 
@@ -29,7 +28,6 @@ const Navbar = () => {
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-[#020617]/80 backdrop-blur-xl border-b border-white/5">
       <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-        {/* Logo */}
         <Link
           to="/"
           className="text-2xl font-black tracking-tighter italic text-white group"

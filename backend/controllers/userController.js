@@ -11,25 +11,15 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
-//  GET /api/users/profile/:userId
 exports.getUserProfile = async (req, res) => {
   const { userId } = req.params;
 
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      `
-      id,
-      email,
-      subscription_status,
-      golf_scores,
-      charity_id,
-      charity_percent,
-      payout_status,
-      total_winnings,
-      created_at,
-      charities ( name )
-    `,
+      `id, email, subscription_status, subscription_plan, golf_scores,
+       charity_id, charity_percent, payout_status, total_winnings,
+       created_at, charities ( name )`,
     )
     .eq("id", userId)
     .single();
@@ -41,21 +31,13 @@ exports.getUserProfile = async (req, res) => {
   return res.status(200).json(data);
 };
 
-// ── GET /api/users/admin/all
 exports.getAllUsers = async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from("profiles")
     .select(
-      `
-      id,
-      email,
-      subscription_status,
-      golf_scores,
-      charity_percent,
-      payout_status,
-      total_winnings,
-      created_at
-    `,
+      `id, email, subscription_status, subscription_plan, golf_scores,
+       charity_percent, payout_status, total_winnings, created_at,
+       charities ( name )`,
     )
     .order("created_at", { ascending: false });
 
@@ -66,7 +48,7 @@ exports.getAllUsers = async (req, res) => {
   return res.status(200).json(data);
 };
 
-//  PUT /api/users/update-score/:userId
+// PUT /api/users/update-score/:userId
 exports.addOrUpdateScore = async (req, res) => {
   const { userId } = req.params;
   const { newScore } = req.body;
@@ -84,6 +66,16 @@ exports.addOrUpdateScore = async (req, res) => {
     return res.status(400).json({ error: "Score date is required." });
   }
 
+  // FIX: Validate date is not in the future
+  const scoreDate = new Date(newScore.date);
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  if (scoreDate > today) {
+    return res
+      .status(400)
+      .json({ error: "Score date cannot be in the future." });
+  }
+
   const { data: profile, error: fetchErr } = await supabaseAdmin
     .from("profiles")
     .select("golf_scores, subscription_status")
@@ -91,7 +83,6 @@ exports.addOrUpdateScore = async (req, res) => {
     .single();
 
   if (fetchErr) {
-    console.error("Score fetch error:", fetchErr.message);
     return res.status(500).json({ error: fetchErr.message });
   }
 
@@ -114,7 +105,6 @@ exports.addOrUpdateScore = async (req, res) => {
     .eq("id", userId);
 
   if (updateErr) {
-    console.error("Score update error:", updateErr.message);
     return res.status(500).json({ error: updateErr.message });
   }
 
@@ -123,7 +113,44 @@ exports.addOrUpdateScore = async (req, res) => {
     .json({ message: "Score updated successfully.", scores: updated });
 };
 
-// ── PUT /api/users/admin/verify-winner/:userId
+exports.adminEditScores = async (req, res) => {
+  const { userId } = req.params;
+  const { scores } = req.body;
+
+  if (!Array.isArray(scores)) {
+    return res.status(400).json({ error: "scores must be an array." });
+  }
+
+  for (const s of scores) {
+    const v = parseInt(s.value, 10);
+    if (isNaN(v) || v < 1 || v > 45) {
+      return res
+        .status(400)
+        .json({ error: `Invalid score value: ${s.value}. Must be 1-45.` });
+    }
+    if (!s.date) {
+      return res.status(400).json({ error: "Each score must have a date." });
+    }
+  }
+
+  const sanitized = scores
+    .map((s) => ({ value: parseInt(s.value, 10), date: s.date }))
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
+
+  const { error } = await supabaseAdmin
+    .from("profiles")
+    .update({ golf_scores: sanitized })
+    .eq("id", userId);
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  return res
+    .status(200)
+    .json({ message: "Scores updated by admin.", scores: sanitized });
+};
+
 exports.updateWinnerStatus = async (req, res) => {
   const { userId } = req.params;
   const { status } = req.body;
@@ -135,13 +162,24 @@ exports.updateWinnerStatus = async (req, res) => {
       .json({ error: `Status must be one of: ${valid.join(", ")}` });
   }
 
+  const updatePayload = { payout_status: status };
+
+  if (status === "Paid") {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("total_winnings")
+      .eq("id", userId)
+      .single();
+
+    updatePayload.paid_at = new Date().toISOString();
+  }
+
   const { error } = await supabaseAdmin
     .from("profiles")
-    .update({ payout_status: status })
+    .update(updatePayload)
     .eq("id", userId);
 
   if (error) {
-    console.error("updateWinnerStatus error:", error.message);
     return res.status(500).json({ error: error.message });
   }
   return res
@@ -149,12 +187,20 @@ exports.updateWinnerStatus = async (req, res) => {
     .json({ message: `Payout status updated to ${status}.` });
 };
 
-// ── DELETE /api/users/admin/delete/:userId
 exports.deleteUser = async (req, res) => {
   const { userId } = req.params;
   try {
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (error) throw error;
+    const { error: profileErr } = await supabaseAdmin
+      .from("profiles")
+      .delete()
+      .eq("id", userId);
+
+    if (profileErr) throw profileErr;
+
+    const { error: authErr } =
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (authErr) throw authErr;
+
     return res.status(200).json({ message: "User deleted successfully." });
   } catch (err) {
     console.error("deleteUser error:", err.message);

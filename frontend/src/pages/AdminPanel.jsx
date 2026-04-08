@@ -4,7 +4,6 @@ import { supabase } from "../supabaseClient";
 
 const API = process.env.REACT_APP_API_URL;
 
-// ─── small reusable stat card ────────────────────────────────────────────────
 const StatCard = ({ label, value, accent }) => (
   <div className="text-right">
     <p className="text-[10px] text-slate-500 uppercase font-black mb-1 tracking-widest">
@@ -18,7 +17,6 @@ const StatCard = ({ label, value, accent }) => (
   </div>
 );
 
-// ─── tab button ──────────────────────────────────────────────────────────────
 const Tab = ({ id, active, onClick, children }) => (
   <button
     onClick={() => onClick(id)}
@@ -32,7 +30,6 @@ const Tab = ({ id, active, onClick, children }) => (
   </button>
 );
 
-// ─── toast notification ──────────────────────────────────────────────────────
 const Toast = ({ msg, type }) => {
   if (!msg) return null;
   const colours =
@@ -46,7 +43,113 @@ const Toast = ({ msg, type }) => {
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+const ScoreEditor = ({ user, onSaved, onCancel }) => {
+  const [scores, setScores] = useState(
+    (user.golf_scores || []).map((s) => ({
+      value: s.value ?? s,
+      date: s.date || "",
+    })),
+  );
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const updateScore = (idx, field, val) => {
+    const updated = [...scores];
+    updated[idx] = { ...updated[idx], [field]: val };
+    setScores(updated);
+  };
+
+  const removeScore = (idx) => setScores(scores.filter((_, i) => i !== idx));
+
+  const addScore = () => {
+    if (scores.length >= 5) return;
+    setScores([
+      ...scores,
+      { value: "", date: new Date().toISOString().split("T")[0] },
+    ]);
+  };
+
+  const handleSave = async () => {
+    setErr("");
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/api/users/admin/edit-scores/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scores }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed");
+      onSaved(data.scores);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 p-6 bg-slate-950 border border-cyan-500/20 rounded-2xl">
+      <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400 mb-4">
+        Edit Scores for {user.email}
+      </p>
+      {err && <p className="text-red-400 text-xs mb-3">{err}</p>}
+      <div className="space-y-2 mb-4">
+        {scores.map((s, i) => (
+          <div key={i} className="flex gap-2 items-center">
+            <input
+              type="number"
+              min="1"
+              max="45"
+              value={s.value}
+              onChange={(e) => updateScore(i, "value", e.target.value)}
+              placeholder="Score 1-45"
+              className="w-24 bg-slate-900 border border-slate-700 p-2 rounded-lg text-white text-sm outline-none focus:border-cyan-500"
+            />
+            <input
+              type="date"
+              value={s.date}
+              max={new Date().toISOString().split("T")[0]}
+              onChange={(e) => updateScore(i, "date", e.target.value)}
+              className="flex-1 bg-slate-900 border border-slate-700 p-2 rounded-lg text-white text-sm outline-none focus:border-cyan-500"
+            />
+            <button
+              onClick={() => removeScore(i)}
+              className="text-red-400 text-xs font-black hover:text-red-300 px-2"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-3">
+        {scores.length < 5 && (
+          <button
+            onClick={addScore}
+            className="text-xs text-cyan-400 font-black uppercase border border-cyan-500/30 px-4 py-2 rounded-lg hover:bg-cyan-500/10"
+          >
+            + Add Score
+          </button>
+        )}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-2 bg-cyan-500 text-black text-xs font-black rounded-lg disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save Scores"}
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-6 py-2 bg-slate-800 text-slate-300 text-xs font-black rounded-lg hover:bg-slate-700"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ════════════════════════════════════════════════════════════════════════════════
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("draws");
 
@@ -61,6 +164,7 @@ const AdminPanel = () => {
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersToast, setUsersToast] = useState({ msg: "", type: "" });
+  const [editingScoresFor, setEditingScoresFor] = useState(null);
 
   // charities state
   const [charities, setCharities] = useState([]);
@@ -73,18 +177,17 @@ const AdminPanel = () => {
   });
   const [addingCharity, setAddingCharity] = useState(false);
 
-  // stats (header)
+  const [drawHistory, setDrawHistory] = useState([]);
+
   const [stats, setStats] = useState({
     totalPool: 0,
     charityTotal: 0,
     activeUsers: 0,
   });
 
-  // ── fetch helpers ─────────────────────────────────────────────────────────
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
-      // Use the backend route (requires service role key — safe on server)
       const res = await fetch(`${API}/api/users/admin/all`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -96,7 +199,15 @@ const AdminPanel = () => {
       const pool = active * 19;
       setStats({
         totalPool: pool,
-        charityTotal: pool * 0.1,
+        charityTotal: (data || [])
+          .reduce((sum, u) => {
+            if (u.subscription_status === "active") {
+              const pct = parseInt(u.charity_percent || 10, 10) / 100;
+              return sum + 19 * pct;
+            }
+            return sum;
+          }, 0)
+          .toFixed(2),
         activeUsers: active,
       });
     } catch (err) {
@@ -128,12 +239,23 @@ const AdminPanel = () => {
     }
   }, []);
 
+  const fetchDrawHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/draw/history`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setDrawHistory(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("draw history fetch failed:", err.message);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
     fetchCharities();
-  }, [fetchUsers, fetchCharities]);
+    fetchDrawHistory();
+  }, [fetchUsers, fetchCharities, fetchDrawHistory]);
 
-  // ── draw simulation ───────────────────────────────────────────────────────
   const runSimulation = async () => {
     setSimLoading(true);
     setSimResult(null);
@@ -154,19 +276,24 @@ const AdminPanel = () => {
     }
   };
 
-  // ── publish draw ─────────────────────────────────────────────────────────
   const publishDraw = async () => {
     if (!simResult) return;
     setPublishLoading(true);
     setDrawToast({ msg: "", type: "" });
     try {
+      const jackpotRollover = (simResult.winners?.tier5?.length ?? 0) === 0;
+      const jackpotAmount = jackpotRollover
+        ? stats.totalPool * 0.4 + (simResult.rolledOverJackpot || 0)
+        : 0;
+
       const res = await fetch(`${API}/api/draw/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           winningNumbers: simResult.winningNumbers,
           winners: simResult.winners,
-          jackpotRollover: (simResult.winners?.tier5?.length ?? 0) === 0,
+          jackpotRollover,
+          jackpotAmount,
         }),
       });
       const data = await res.json();
@@ -176,7 +303,8 @@ const AdminPanel = () => {
         type: "success",
       });
       setSimResult(null);
-      fetchUsers(); // refresh stats
+      fetchUsers();
+      fetchDrawHistory();
     } catch (err) {
       setDrawToast({ msg: err.message, type: "error" });
     } finally {
@@ -184,7 +312,6 @@ const AdminPanel = () => {
     }
   };
 
-  // ── verify winner ─────────────────────────────────────────────────────────
   const handleVerify = async (userId, status) => {
     setUsersToast({ msg: "", type: "" });
     try {
@@ -198,46 +325,42 @@ const AdminPanel = () => {
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Update failed");
-      setUsersToast({ msg: `Payout marked as ${status}.`, type: "success" });
+      setUsersToast({ msg: `Status updated to ${status}.`, type: "success" });
       fetchUsers();
     } catch (err) {
       setUsersToast({ msg: err.message, type: "error" });
     }
   };
 
-  // ── delete user ───────────────────────────────────────────────────────────
   const handleDeleteUser = async (userId, email) => {
-    if (!window.confirm(`Delete user ${email}? This cannot be undone.`)) return;
-    setUsersToast({ msg: "", type: "" });
+    if (!window.confirm(`Permanently delete ${email}? This cannot be undone.`))
+      return;
     try {
       const res = await fetch(`${API}/api/users/admin/delete/${userId}`, {
         method: "DELETE",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
-      setUsersToast({ msg: "User deleted.", type: "success" });
+      setUsersToast({ msg: `${email} deleted.`, type: "success" });
       fetchUsers();
     } catch (err) {
       setUsersToast({ msg: err.message, type: "error" });
     }
   };
 
-  // ── add charity ───────────────────────────────────────────────────────────
   const handleAddCharity = async () => {
     if (!newCharity.name.trim()) return;
     setAddingCharity(true);
-    setCharToast({ msg: "", type: "" });
     try {
-      const { error } = await supabase.from("charities").insert([
-        {
-          name: newCharity.name.trim(),
-          description: newCharity.description.trim(),
-          is_featured: newCharity.is_featured,
-        },
-      ]);
-      if (error) throw error;
+      const res = await fetch(`${API}/api/charities`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCharity),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Add failed");
       setNewCharity({ name: "", description: "", is_featured: false });
-      setCharToast({ msg: "Charity added.", type: "success" });
+      setCharToast({ msg: "Charity added successfully.", type: "success" });
       fetchCharities();
     } catch (err) {
       setCharToast({ msg: err.message, type: "error" });
@@ -246,201 +369,163 @@ const AdminPanel = () => {
     }
   };
 
-  // ── delete charity ────────────────────────────────────────────────────────
-  const handleDeleteCharity = async (id, name) => {
+  const handleDeleteCharity = async (charityId, name) => {
     if (!window.confirm(`Delete charity "${name}"?`)) return;
-    setCharToast({ msg: "", type: "" });
     try {
-      const { error } = await supabase.from("charities").delete().eq("id", id);
-      if (error) throw error;
-      setCharToast({ msg: "Charity removed.", type: "success" });
+      const res = await fetch(`${API}/api/charities/${charityId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setCharToast({ msg: "Charity deleted.", type: "success" });
       fetchCharities();
     } catch (err) {
       setCharToast({ msg: err.message, type: "error" });
     }
   };
 
-  // ── toggle featured ───────────────────────────────────────────────────────
-  const toggleFeatured = async (id, current) => {
-    const { error } = await supabase
-      .from("charities")
-      .update({ is_featured: !current })
-      .eq("id", id);
-    if (!error) fetchCharities();
+  const toggleFeatured = async (charityId, currentState) => {
+    try {
+      const res = await fetch(`${API}/api/charities/${charityId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_featured: !currentState }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      fetchCharities();
+    } catch (err) {
+      setCharToast({ msg: err.message, type: "error" });
+    }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="pt-28 pb-20 px-6 max-w-7xl mx-auto min-h-screen bg-[#020617] text-white">
-      {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
-        <div>
-          <h1 className="text-5xl font-black italic tracking-tighter uppercase">
-            Admin<span className="text-cyan-400">Portal</span>
-          </h1>
-          <p className="text-slate-500 font-bold text-xs tracking-[0.2em] mt-2 uppercase">
-            System Oversight & Governance
-          </p>
-        </div>
-        <div className="flex gap-10 items-end">
-          <StatCard label="Active Subscribers" value={stats.activeUsers} />
-          <div className="border-l border-slate-800 pl-10">
-            <StatCard
-              label="Total Prize Pool"
-              value={`$${stats.totalPool}`}
-              accent
-            />
+    <div className="min-h-screen bg-[#020617] text-white pt-32 pb-20 px-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-wrap justify-between items-end gap-6 mb-12">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400 mb-2">
+              Admin Portal
+            </p>
+            <h1 className="text-4xl font-black italic tracking-tighter uppercase">
+              Control Centre
+            </h1>
           </div>
-          <div className="border-l border-slate-800 pl-10">
+          <div className="flex gap-10">
+            <StatCard label="Active Users" value={stats.activeUsers} accent />
             <StatCard
-              label="Charity Contributions"
-              value={`$${stats.charityTotal.toFixed(2)}`}
+              label="Prize Pool"
+              value={`$${stats.totalPool.toLocaleString()}`}
             />
+            <StatCard label="Charity Total" value={`$${stats.charityTotal}`} />
           </div>
         </div>
-      </div>
 
-      {/* ── Tabs ── */}
-      <div className="flex gap-2 mb-10 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 w-fit">
-        <Tab id="draws" active={activeTab === "draws"} onClick={setActiveTab}>
-          Draws
-        </Tab>
-        <Tab id="users" active={activeTab === "users"} onClick={setActiveTab}>
-          Users
-        </Tab>
-        <Tab
-          id="charities"
-          active={activeTab === "charities"}
-          onClick={setActiveTab}
-        >
-          Charities
-        </Tab>
-      </div>
+        <div className="flex gap-2 mb-10 border-b border-slate-800 pb-4 overflow-x-auto">
+          {[
+            { id: "draws", label: "Draw Engine" },
+            { id: "users", label: "Users" },
+            { id: "charities", label: "Charities" },
+            { id: "reports", label: "Reports" },
+          ].map((t) => (
+            <Tab
+              key={t.id}
+              id={t.id}
+              active={activeTab === t.id}
+              onClick={setActiveTab}
+            >
+              {t.label}
+            </Tab>
+          ))}
+        </div>
 
-      <AnimatePresence mode="wait">
-        {/* ════════════════ DRAWS TAB ════════════════ */}
-        {activeTab === "draws" && (
-          <motion.div
-            key="draws"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Toast msg={drawToast.msg} type={drawToast.type} />
-
-            <div className="grid lg:grid-cols-3 gap-8">
-              {/* Controls */}
-              <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 h-fit space-y-6">
-                <h2 className="text-xl font-bold italic">
-                  Monthly Draw Engine
-                </h2>
-
-                {/* Draw type toggle */}
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-3">
-                    Draw Logic
-                  </p>
-                  <div className="bg-slate-950 p-1 rounded-2xl border border-slate-800 flex">
-                    <button
-                      onClick={() => setDrawType("random")}
-                      className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase transition-all ${
-                        drawType === "random"
-                          ? "bg-cyan-500 text-black"
-                          : "text-slate-500 hover:text-white"
-                      }`}
-                    >
-                      Random
-                    </button>
-                    <button
-                      onClick={() => setDrawType("algorithmic")}
-                      className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase transition-all ${
-                        drawType === "algorithmic"
-                          ? "bg-blue-600 text-white"
-                          : "text-slate-500 hover:text-white"
-                      }`}
-                    >
-                      Weighted
-                    </button>
+        <AnimatePresence mode="wait">
+          {activeTab === "draws" && (
+            <motion.div
+              key="draws"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <Toast msg={drawToast.msg} type={drawToast.type} />
+              <div className="grid lg:grid-cols-2 gap-8">
+                <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">
+                    Configure Draw
+                  </h3>
+                  <div className="space-y-4 mb-8">
+                    {["random", "algorithmic"].map((t) => (
+                      <label
+                        key={t}
+                        className={`flex items-start gap-4 p-5 rounded-2xl border cursor-pointer transition-all ${
+                          drawType === t
+                            ? "border-cyan-500/50 bg-cyan-500/5"
+                            : "border-slate-800 hover:border-slate-700"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="drawType"
+                          value={t}
+                          checked={drawType === t}
+                          onChange={(e) => setDrawType(e.target.value)}
+                          className="mt-1 accent-cyan-500"
+                        />
+                        <div>
+                          <p className="text-sm font-black uppercase text-white">
+                            {t === "random"
+                              ? "Random Draw"
+                              : "Algorithmic Draw"}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {t === "random"
+                              ? "Standard lottery-style — equal chance for all numbers."
+                              : "Weighted by most/least frequent user scores from this month."}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                  <p className="text-[10px] text-slate-600 mt-2">
-                    {drawType === "random"
-                      ? "Standard lottery — fully random numbers."
-                      : "Weighted by most/least frequent user scores."}
-                  </p>
+                  <button
+                    onClick={runSimulation}
+                    disabled={simLoading}
+                    className="w-full py-5 bg-slate-800 text-white font-black rounded-2xl uppercase tracking-widest text-sm hover:bg-slate-700 transition-all disabled:opacity-50"
+                  >
+                    {simLoading ? "Running Simulation…" : "Run Simulation"}
+                  </button>
                 </div>
 
-                {/* Prize pool breakdown */}
-                <div className="bg-slate-950 rounded-2xl border border-slate-800 p-4 space-y-2">
-                  <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest mb-3">
-                    Pool Breakdown
-                  </p>
-                  {[
-                    {
-                      label: "5-Match Jackpot",
-                      pct: "40%",
-                      val: stats.totalPool * 0.4,
-                    },
-                    {
-                      label: "4-Match",
-                      pct: "35%",
-                      val: stats.totalPool * 0.35,
-                    },
-                    {
-                      label: "3-Match",
-                      pct: "25%",
-                      val: stats.totalPool * 0.25,
-                    },
-                  ].map((t) => (
-                    <div key={t.label} className="flex justify-between text-xs">
-                      <span className="text-slate-400">
-                        {t.label}{" "}
-                        <span className="text-slate-600">({t.pct})</span>
-                      </span>
-                      <span className="font-black text-white">
-                        ${t.val.toFixed(2)}
-                      </span>
+                <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">
+                    Simulation Results
+                  </h3>
+
+                  {!simResult ? (
+                    <div className="flex-1 py-20 text-center text-slate-600 font-mono text-xs uppercase tracking-widest">
+                      Run a simulation to see results here
                     </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={runSimulation}
-                  disabled={simLoading}
-                  className="w-full py-5 bg-white text-black font-black rounded-2xl hover:bg-cyan-400 transition-all uppercase text-sm tracking-tighter disabled:opacity-50"
-                >
-                  {simLoading ? "Simulating…" : "Run Simulation"}
-                </button>
-              </div>
-
-              {/* Results */}
-              <div className="lg:col-span-2 space-y-6">
-                {!simResult && !simLoading && (
-                  <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-800 rounded-[2.5rem] py-20">
-                    <p className="text-slate-600 font-mono text-xs uppercase tracking-widest">
-                      Run a simulation to preview results
-                    </p>
-                  </div>
-                )}
-
-                {simResult && (
-                  <>
-                    <div className="bg-gradient-to-br from-cyan-500/10 to-blue-600/10 p-10 rounded-[2.5rem] border border-cyan-500/20">
-                      <p className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-6">
-                        Winning Combination
-                      </p>
-
-                      {/* Winning balls */}
-                      <div className="flex gap-3 mb-8 flex-wrap">
-                        {simResult.winningNumbers.map((n, i) => (
-                          <div
-                            key={i}
-                            className="w-14 h-14 rounded-full bg-cyan-500 text-black flex items-center justify-center text-2xl font-black"
-                          >
-                            {n}
-                          </div>
-                        ))}
+                  ) : (
+                    <>
+                      <div className="mb-6">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                          Winning Numbers
+                        </p>
+                        <div className="flex gap-3 flex-wrap">
+                          {simResult.winningNumbers.map((n, i) => (
+                            <div
+                              key={i}
+                              className="w-12 h-12 rounded-full bg-cyan-500 text-black flex items-center justify-center font-black text-lg shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+                            >
+                              {n}
+                            </div>
+                          ))}
+                        </div>
+                        {simResult.rolledOverJackpot > 0 && (
+                          <p className="text-amber-400 text-xs font-bold mt-3">
+                            + Jackpot rollover included: $
+                            {simResult.rolledOverJackpot.toLocaleString()}
+                          </p>
+                        )}
                       </div>
 
-                      {/* Tier results */}
                       <div className="grid grid-cols-3 gap-4 font-mono">
                         {[
                           {
@@ -452,7 +537,7 @@ const AdminPanel = () => {
                           { label: "4-Match", pct: "35%", tier: "tier4" },
                           { label: "3-Match", pct: "25%", tier: "tier3" },
                         ].map((t, idx) => {
-                          const winners = simResult.winners?.[t.tier] ?? [];
+                          const w = simResult.winners?.[t.tier] ?? [];
                           const prize =
                             stats.totalPool * [0.4, 0.35, 0.25][idx];
                           return (
@@ -467,13 +552,16 @@ const AdminPanel = () => {
                                 ${prize.toLocaleString()}
                               </p>
                               <p
-                                className={`text-[10px] mt-2 font-bold ${winners.length > 0 ? "text-green-400" : "text-slate-600"}`}
+                                className={`text-[10px] mt-2 font-bold ${
+                                  w.length > 0
+                                    ? "text-green-400"
+                                    : "text-slate-600"
+                                }`}
                               >
-                                {winners.length} winner
-                                {winners.length !== 1 ? "s" : ""}
-                                {t.rollover && winners.length === 0 && (
+                                {w.length} winner{w.length !== 1 ? "s" : ""}
+                                {t.rollover && w.length === 0 && (
                                   <span className="text-amber-400 ml-1">
-                                    · Jackpot rolls over
+                                    · Rolls over
                                   </span>
                                 )}
                               </p>
@@ -481,257 +569,387 @@ const AdminPanel = () => {
                           );
                         })}
                       </div>
-                    </div>
 
-                    {/* Publish */}
-                    <button
-                      onClick={publishDraw}
-                      disabled={publishLoading}
-                      className="w-full py-5 bg-cyan-500 text-black font-black rounded-2xl uppercase tracking-widest text-sm hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all disabled:opacity-50"
-                    >
-                      {publishLoading
-                        ? "Publishing…"
-                        : "Publish Official Results"}
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* ════════════════ USERS TAB ════════════════ */}
-        {activeTab === "users" && (
-          <motion.div
-            key="users"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <Toast msg={usersToast.msg} type={usersToast.type} />
-
-            {usersLoading ? (
-              <div className="py-20 text-center text-slate-600 font-mono text-xs tracking-widest uppercase">
-                Loading users…
-              </div>
-            ) : (
-              <div className="bg-slate-900/30 rounded-[2.5rem] border border-slate-800 overflow-x-auto">
-                <table className="w-full text-left min-w-[800px]">
-                  <thead className="bg-slate-900/80 text-slate-500 text-[10px] uppercase font-black tracking-widest">
-                    <tr>
-                      <th className="p-5">Email</th>
-                      <th className="p-5">Subscription</th>
-                      <th className="p-5">Charity %</th>
-                      <th className="p-5">Scores (latest 5)</th>
-                      <th className="p-5">Payout</th>
-                      <th className="p-5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {users.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={6}
-                          className="p-8 text-center text-slate-600 font-mono text-xs"
-                        >
-                          No users found
-                        </td>
-                      </tr>
-                    )}
-                    {users.map((u) => (
-                      <tr
-                        key={u.id}
-                        className="border-t border-slate-800 hover:bg-white/[0.02] transition-colors"
+                      <button
+                        onClick={publishDraw}
+                        disabled={publishLoading}
+                        className="mt-6 w-full py-5 bg-cyan-500 text-black font-black rounded-2xl uppercase tracking-widest text-sm hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all disabled:opacity-50"
                       >
-                        <td className="p-5 font-bold text-white text-sm">
-                          {u.email}
-                        </td>
-
-                        <td className="p-5">
-                          <span
-                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                              u.subscription_status === "active"
-                                ? "bg-green-500/10 text-green-400"
-                                : "bg-red-500/10 text-red-400"
-                            }`}
-                          >
-                            {u.subscription_status || "inactive"}
-                          </span>
-                        </td>
-
-                        <td className="p-5 text-slate-400 text-xs font-mono">
-                          {u.charity_percent ? `${u.charity_percent}%` : "—"}
-                        </td>
-
-                        <td className="p-5 text-slate-500 text-xs font-mono">
-                          {(u.golf_scores || []).length > 0
-                            ? (u.golf_scores || [])
-                                .slice(0, 5)
-                                .map((s) => s.value ?? s)
-                                .join(", ")
-                            : "No scores"}
-                        </td>
-
-                        <td className="p-5">
-                          {u.payout_status ? (
-                            <span
-                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                                u.payout_status === "Paid"
-                                  ? "bg-green-500/10 text-green-400"
-                                  : u.payout_status === "Pending"
-                                    ? "bg-amber-500/10 text-amber-400"
-                                    : "bg-red-500/10 text-red-400"
-                              }`}
-                            >
-                              {u.payout_status}
-                            </span>
-                          ) : (
-                            <span className="text-slate-700 text-xs">—</span>
-                          )}
-                        </td>
-
-                        <td className="p-5 text-right space-x-3 whitespace-nowrap">
-                          {u.payout_status === "Pending" && (
-                            <>
-                              <button
-                                onClick={() => handleVerify(u.id, "Paid")}
-                                className="text-green-400 text-[10px] font-black uppercase hover:underline"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleVerify(u.id, "Rejected")}
-                                className="text-red-400 text-[10px] font-black uppercase hover:underline"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={() => handleDeleteUser(u.id, u.email)}
-                            className="text-slate-600 text-[10px] font-black uppercase hover:text-red-400 transition-colors"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        {publishLoading
+                          ? "Publishing…"
+                          : "Publish Official Results"}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            )}
-          </motion.div>
-        )}
+            </motion.div>
+          )}
 
-        {/* ════════════════ CHARITIES TAB ════════════════ */}
-        {activeTab === "charities" && (
-          <motion.div
-            key="charities"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <Toast msg={charToast.msg} type={charToast.type} />
+          {activeTab === "users" && (
+            <motion.div
+              key="users"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <Toast msg={usersToast.msg} type={usersToast.type} />
+              {usersLoading ? (
+                <div className="py-20 text-center text-slate-600 font-mono text-xs tracking-widest uppercase">
+                  Loading users…
+                </div>
+              ) : (
+                <div className="bg-slate-900/30 rounded-[2.5rem] border border-slate-800 overflow-x-auto">
+                  <table className="w-full text-left min-w-[900px]">
+                    <thead className="bg-slate-900/80 text-slate-500 text-[10px] uppercase font-black tracking-widest">
+                      <tr>
+                        <th className="p-5">Email</th>
+                        <th className="p-5">Subscription</th>
+                        <th className="p-5">Charity %</th>
+                        <th className="p-5">Scores (latest 5)</th>
+                        <th className="p-5">Payout</th>
+                        <th className="p-5 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {users.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="p-8 text-center text-slate-600 font-mono text-xs"
+                          >
+                            No users found
+                          </td>
+                        </tr>
+                      )}
+                      {users.map((u) => (
+                        <React.Fragment key={u.id}>
+                          <tr className="border-t border-slate-800 hover:bg-white/[0.02] transition-colors">
+                            <td className="p-5 font-bold text-white text-sm">
+                              {u.email}
+                            </td>
+                            <td className="p-5">
+                              <span
+                                className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                  u.subscription_status === "active"
+                                    ? "bg-green-500/10 text-green-400"
+                                    : "bg-red-500/10 text-red-400"
+                                }`}
+                              >
+                                {u.subscription_status || "inactive"}
+                              </span>
+                            </td>
+                            <td className="p-5 text-slate-400 text-xs font-mono">
+                              {u.charity_percent
+                                ? `${u.charity_percent}%`
+                                : "—"}
+                            </td>
+                            <td className="p-5 text-slate-500 text-xs font-mono">
+                              {(u.golf_scores || []).length > 0
+                                ? (u.golf_scores || [])
+                                    .slice(0, 5)
+                                    .map((s) => s.value ?? s)
+                                    .join(", ")
+                                : "No scores"}
+                            </td>
+                            <td className="p-5">
+                              {u.payout_status ? (
+                                <span
+                                  className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                    u.payout_status === "Paid"
+                                      ? "bg-green-500/10 text-green-400"
+                                      : u.payout_status === "Pending"
+                                        ? "bg-amber-500/10 text-amber-400"
+                                        : "bg-red-500/10 text-red-400"
+                                  }`}
+                                >
+                                  {u.payout_status}
+                                </span>
+                              ) : (
+                                <span className="text-slate-700 text-xs">
+                                  —
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-5 text-right space-x-3 whitespace-nowrap">
+                              <button
+                                onClick={() =>
+                                  setEditingScoresFor(
+                                    editingScoresFor?.id === u.id ? null : u,
+                                  )
+                                }
+                                className="text-cyan-400 text-[10px] font-black uppercase hover:underline"
+                              >
+                                {editingScoresFor?.id === u.id
+                                  ? "Close"
+                                  : "Edit Scores"}
+                              </button>
+                              {u.payout_status === "Pending" && (
+                                <>
+                                  <button
+                                    onClick={() => handleVerify(u.id, "Paid")}
+                                    className="text-green-400 text-[10px] font-black uppercase hover:underline"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleVerify(u.id, "Rejected")
+                                    }
+                                    className="text-red-400 text-[10px] font-black uppercase hover:underline"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => handleDeleteUser(u.id, u.email)}
+                                className="text-slate-600 text-[10px] font-black uppercase hover:text-red-400 transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                          {editingScoresFor?.id === u.id && (
+                            <tr className="border-t border-cyan-500/10">
+                              <td colSpan={6} className="px-5 pb-5">
+                                <ScoreEditor
+                                  user={u}
+                                  onSaved={(newScores) => {
+                                    setUsers((prev) =>
+                                      prev.map((usr) =>
+                                        usr.id === u.id
+                                          ? { ...usr, golf_scores: newScores }
+                                          : usr,
+                                      ),
+                                    );
+                                    setEditingScoresFor(null);
+                                    setUsersToast({
+                                      msg: "Scores updated successfully.",
+                                      type: "success",
+                                    });
+                                  }}
+                                  onCancel={() => setEditingScoresFor(null)}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </motion.div>
+          )}
 
-            {/* Add form */}
-            <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 mb-8">
-              <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">
-                Add New Charity
-              </h3>
-              <div className="grid md:grid-cols-4 gap-4 items-end">
-                <input
-                  type="text"
-                  placeholder="Charity name *"
-                  value={newCharity.name}
-                  onChange={(e) =>
-                    setNewCharity({ ...newCharity, name: e.target.value })
-                  }
-                  className="bg-slate-950 border border-slate-700 p-4 rounded-2xl text-white text-sm outline-none focus:border-cyan-500 transition-colors"
-                />
-                <input
-                  type="text"
-                  placeholder="Short description"
-                  value={newCharity.description}
-                  onChange={(e) =>
-                    setNewCharity({
-                      ...newCharity,
-                      description: e.target.value,
-                    })
-                  }
-                  className="bg-slate-950 border border-slate-700 p-4 rounded-2xl text-white text-sm outline-none focus:border-cyan-500 transition-colors"
-                />
-                <label className="flex items-center gap-3 cursor-pointer text-sm text-slate-400 font-bold pl-2">
+          {activeTab === "charities" && (
+            <motion.div
+              key="charities"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <Toast msg={charToast.msg} type={charToast.type} />
+              <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 mb-8">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">
+                  Add New Charity
+                </h3>
+                <div className="grid md:grid-cols-4 gap-4 items-end">
                   <input
-                    type="checkbox"
-                    checked={newCharity.is_featured}
+                    type="text"
+                    placeholder="Charity name *"
+                    value={newCharity.name}
+                    onChange={(e) =>
+                      setNewCharity({ ...newCharity, name: e.target.value })
+                    }
+                    className="bg-slate-950 border border-slate-700 p-4 rounded-2xl text-white text-sm outline-none focus:border-cyan-500 transition-colors"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Short description"
+                    value={newCharity.description}
                     onChange={(e) =>
                       setNewCharity({
                         ...newCharity,
-                        is_featured: e.target.checked,
+                        description: e.target.value,
                       })
                     }
-                    className="w-4 h-4 accent-cyan-500"
+                    className="bg-slate-950 border border-slate-700 p-4 rounded-2xl text-white text-sm outline-none focus:border-cyan-500 transition-colors"
                   />
-                  Feature on Homepage
-                </label>
-                <button
-                  onClick={handleAddCharity}
-                  disabled={addingCharity || !newCharity.name.trim()}
-                  className="py-4 bg-cyan-500 text-black font-black rounded-2xl hover:bg-cyan-400 transition-all disabled:opacity-40 uppercase text-sm tracking-tight"
-                >
-                  {addingCharity ? "Adding…" : "Add Charity"}
-                </button>
-              </div>
-            </div>
-
-            {/* Charity grid */}
-            {charLoading ? (
-              <div className="py-12 text-center text-slate-600 font-mono text-xs tracking-widest uppercase">
-                Loading charities…
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {charities.length === 0 && (
-                  <div className="col-span-full py-16 text-center text-slate-600 font-mono text-xs">
-                    No charities yet — add one above.
-                  </div>
-                )}
-                {charities.map((c) => (
-                  <div
-                    key={c.id}
-                    className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800 group"
+                  <label className="flex items-center gap-3 cursor-pointer text-sm text-slate-400 font-bold pl-2">
+                    <input
+                      type="checkbox"
+                      checked={newCharity.is_featured}
+                      onChange={(e) =>
+                        setNewCharity({
+                          ...newCharity,
+                          is_featured: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4 accent-cyan-500"
+                    />
+                    Feature on Homepage
+                  </label>
+                  <button
+                    onClick={handleAddCharity}
+                    disabled={addingCharity || !newCharity.name.trim()}
+                    className="py-4 bg-cyan-500 text-black font-black rounded-2xl hover:bg-cyan-400 transition-all disabled:opacity-40 uppercase text-sm tracking-tight"
                   >
-                    <div className="flex justify-between items-start mb-3">
-                      <h4 className="font-black text-white uppercase italic text-sm flex-1 pr-4">
-                        {c.name}
-                      </h4>
+                    {addingCharity ? "Adding…" : "Add Charity"}
+                  </button>
+                </div>
+              </div>
+
+              {charLoading ? (
+                <div className="py-12 text-center text-slate-600 font-mono text-xs tracking-widest uppercase">
+                  Loading charities…
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {charities.length === 0 && (
+                    <div className="col-span-full py-16 text-center text-slate-600 font-mono text-xs">
+                      No charities yet — add one above.
+                    </div>
+                  )}
+                  {charities.map((c) => (
+                    <div
+                      key={c.id}
+                      className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800 group"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <h4 className="font-black text-white uppercase italic text-sm flex-1 pr-4">
+                          {c.name}
+                        </h4>
+                        <button
+                          onClick={() => handleDeleteCharity(c.id, c.name)}
+                          className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-black uppercase flex-shrink-0"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      {c.description && (
+                        <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                          {c.description}
+                        </p>
+                      )}
                       <button
-                        onClick={() => handleDeleteCharity(c.id, c.name)}
-                        className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-black uppercase flex-shrink-0"
+                        onClick={() => toggleFeatured(c.id, c.is_featured)}
+                        className={`text-[10px] px-3 py-1 rounded-full font-black uppercase transition-all ${
+                          c.is_featured
+                            ? "bg-cyan-500/20 text-cyan-400 hover:bg-red-500/20 hover:text-red-400"
+                            : "bg-slate-800 text-slate-500 hover:bg-cyan-500/20 hover:text-cyan-400"
+                        }`}
                       >
-                        Delete
+                        {c.is_featured ? "Featured ✓" : "Set as Featured"}
                       </button>
                     </div>
-                    {c.description && (
-                      <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                        {c.description}
-                      </p>
-                    )}
-                    <button
-                      onClick={() => toggleFeatured(c.id, c.is_featured)}
-                      className={`text-[10px] px-3 py-1 rounded-full font-black uppercase transition-all ${
-                        c.is_featured
-                          ? "bg-cyan-500/20 text-cyan-400 hover:bg-red-500/20 hover:text-red-400"
-                          : "bg-slate-800 text-slate-500 hover:bg-cyan-500/20 hover:text-cyan-400"
-                      }`}
-                    >
-                      {c.is_featured ? "Featured ✓" : "Set as Featured"}
-                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === "reports" && (
+            <motion.div
+              key="reports"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+                {[
+                  { label: "Total Users", value: users.length },
+                  { label: "Active Subscribers", value: stats.activeUsers },
+                  {
+                    label: "Total Prize Pool",
+                    value: `$${stats.totalPool.toLocaleString()}`,
+                  },
+                  {
+                    label: "Total Charity Raised",
+                    value: `$${stats.charityTotal}`,
+                  },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className="bg-slate-900/40 p-6 rounded-[2rem] border border-slate-800"
+                  >
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                      {s.label}
+                    </p>
+                    <p className="text-3xl font-black text-white">{s.value}</p>
                   </div>
                 ))}
               </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+              <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">
+                  Draw History
+                </h3>
+                {drawHistory.length === 0 ? (
+                  <p className="text-slate-600 font-mono text-xs text-center py-10">
+                    No draws published yet.
+                  </p>
+                ) : (
+                  <div className="space-y-4">
+                    {drawHistory.map((d) => (
+                      <div
+                        key={d.id}
+                        className="p-5 bg-slate-900/60 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      >
+                        <div>
+                          <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">
+                            {new Date(d.published_at).toLocaleDateString(
+                              "en-GB",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
+                          </p>
+                          <div className="flex gap-2 flex-wrap">
+                            {(d.winning_numbers || []).map((n, i) => (
+                              <span
+                                key={i}
+                                className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-black text-white"
+                              >
+                                {n}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex gap-4 text-xs font-mono text-slate-400 flex-wrap">
+                          <span>
+                            5-Match:{" "}
+                            <strong className="text-white">
+                              {(d.tier5_winners || []).length}
+                            </strong>
+                          </span>
+                          <span>
+                            4-Match:{" "}
+                            <strong className="text-white">
+                              {(d.tier4_winners || []).length}
+                            </strong>
+                          </span>
+                          <span>
+                            3-Match:{" "}
+                            <strong className="text-white">
+                              {(d.tier3_winners || []).length}
+                            </strong>
+                          </span>
+                          {d.jackpot_rollover && (
+                            <span className="text-amber-400 font-bold">
+                              Jackpot rolled over
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };

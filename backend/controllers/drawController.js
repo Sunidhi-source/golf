@@ -6,7 +6,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
-//  POST /api/draw/simulate
 exports.executeDraw = async (req, res) => {
   try {
     const { type } = req.body;
@@ -46,6 +45,8 @@ exports.executeDraw = async (req, res) => {
       }
     }
 
+    winningNumbers.sort((a, b) => a - b);
+
     const { data: users, error: uErr } = await supabase
       .from("profiles")
       .select("id, email, golf_scores")
@@ -57,8 +58,10 @@ exports.executeDraw = async (req, res) => {
 
     (users || []).forEach((user) => {
       const scores = Array.isArray(user.golf_scores) ? user.golf_scores : [];
-      const vals = scores.map((s) => (typeof s === "object" ? s.value : s));
-      const matches = vals.filter((v) => winningNumbers.includes(v)).length;
+      const userVals = new Set(
+        scores.map((s) => (typeof s === "object" ? s.value : s)),
+      );
+      const matches = winningNumbers.filter((n) => userVals.has(n)).length;
 
       if (matches >= 5) winners.tier5.push({ id: user.id, email: user.email });
       else if (matches === 4)
@@ -67,10 +70,22 @@ exports.executeDraw = async (req, res) => {
         winners.tier3.push({ id: user.id, email: user.email });
     });
 
+    const { data: lastDraw } = await supabase
+      .from("draws")
+      .select("jackpot_rollover, jackpot_amount")
+      .order("published_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    const rolledOverJackpot = lastDraw?.jackpot_rollover
+      ? lastDraw.jackpot_amount || 0
+      : 0;
+
     return res.status(200).json({
       message: "Simulation complete",
       winningNumbers,
       winners,
+      rolledOverJackpot,
       summary: `5-Match: ${winners.tier5.length}, 4-Match: ${winners.tier4.length}, 3-Match: ${winners.tier3.length}`,
     });
   } catch (err) {
@@ -81,7 +96,8 @@ exports.executeDraw = async (req, res) => {
 
 exports.publishDraw = async (req, res) => {
   try {
-    const { winningNumbers, winners, jackpotRollover } = req.body;
+    const { winningNumbers, winners, jackpotRollover, jackpotAmount } =
+      req.body;
 
     if (!winningNumbers || !winners) {
       return res
@@ -96,26 +112,46 @@ exports.publishDraw = async (req, res) => {
         tier4_winners: winners.tier4 ?? [],
         tier3_winners: winners.tier3 ?? [],
         jackpot_rollover: !!jackpotRollover,
+        jackpot_amount: jackpotRollover ? jackpotAmount || 0 : 0,
         published_at: new Date().toISOString(),
       },
     ]);
 
     if (drawErr) throw drawErr;
 
-    const tier5Ids = (winners.tier5 ?? []).map((w) =>
-      typeof w === "object" ? w.id : w,
-    );
-    if (tier5Ids.length > 0) {
+    const allWinnerIds = [
+      ...(winners.tier5 ?? []),
+      ...(winners.tier4 ?? []),
+      ...(winners.tier3 ?? []),
+    ].map((w) => (typeof w === "object" ? w.id : w));
+
+    if (allWinnerIds.length > 0) {
       const { error: payErr } = await supabase
         .from("profiles")
         .update({ payout_status: "Pending" })
-        .in("id", tier5Ids);
+        .in("id", allWinnerIds);
       if (payErr) console.error("Payout mark error:", payErr.message);
     }
 
     return res.status(200).json({ message: "Draw published successfully." });
   } catch (err) {
     console.error("publishDraw error:", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getDrawHistory = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("draws")
+      .select("*")
+      .order("published_at", { ascending: false })
+      .limit(12);
+
+    if (error) throw error;
+    return res.status(200).json(data || []);
+  } catch (err) {
+    console.error("getDrawHistory error:", err.message);
     return res.status(500).json({ error: err.message });
   }
 };

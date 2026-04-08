@@ -4,7 +4,6 @@ import { supabase } from "../supabaseClient";
 
 const API = process.env.REACT_APP_API_URL;
 
-// ── Proof upload shown only when payout is Pending ────────────────────────────
 const WinnerProofUpload = ({ userId, onDone }) => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -64,7 +63,98 @@ const WinnerProofUpload = ({ userId, onDone }) => {
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+const DrawHistory = ({ userId }) => {
+  const [draws, setDraws] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API}/api/draw/history`)
+      .then((r) => r.json())
+      .then((data) => {
+        setDraws(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setDraws([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="py-8 text-center text-slate-600 text-xs font-mono uppercase tracking-widest">
+        Loading draw history…
+      </div>
+    );
+  }
+
+  if (draws.length === 0) {
+    return (
+      <div className="py-8 text-center border-2 border-dashed border-slate-800 rounded-[2rem] text-slate-600 font-mono text-xs uppercase tracking-widest">
+        No draws published yet — stay subscribed to enter automatically.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {draws.map((d) => {
+        const isWinner5 = (d.tier5_winners || []).some(
+          (w) => (typeof w === "object" ? w.id : w) === userId,
+        );
+        const isWinner4 = (d.tier4_winners || []).some(
+          (w) => (typeof w === "object" ? w.id : w) === userId,
+        );
+        const isWinner3 = (d.tier3_winners || []).some(
+          (w) => (typeof w === "object" ? w.id : w) === userId,
+        );
+        const winTier = isWinner5
+          ? "5-Match 🏆"
+          : isWinner4
+            ? "4-Match 🎯"
+            : isWinner3
+              ? "3-Match ✓"
+              : null;
+
+        return (
+          <div
+            key={d.id}
+            className={`p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+              winTier
+                ? "bg-cyan-500/10 border-cyan-500/30"
+                : "bg-slate-900/30 border-slate-800"
+            }`}
+          >
+            <div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                {new Date(d.published_at).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {(d.winning_numbers || []).map((n, i) => (
+                  <span
+                    key={i}
+                    className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-xs font-black text-white"
+                  >
+                    {n}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {winTier ? (
+              <span className="text-cyan-400 text-xs font-black uppercase tracking-widest bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/30 whitespace-nowrap">
+                You won: {winTier}
+              </span>
+            ) : (
+              <span className="text-slate-600 text-xs font-mono">No match</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const [scores, setScores] = useState([]);
   const [newScore, setNewScore] = useState("");
@@ -77,6 +167,8 @@ const Dashboard = () => {
   const [success, setSuccess] = useState("");
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  // FIX: Track which tab is shown — PRD §10 requires participation summary as a module
+  const [activeSection, setActiveSection] = useState("scores");
 
   const fetchUserData = useCallback(async (userId) => {
     try {
@@ -192,111 +284,147 @@ const Dashboard = () => {
           </div>
         </motion.div>
 
-        <div className="grid lg:grid-cols-3 gap-10">
-          {/* ── Score Entry ── */}
-          <div
-            className={
-              !isActive ? "opacity-30 pointer-events-none select-none" : ""
-            }
-          >
-            <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-4">
-              Score Entry
-            </p>
-            <div className="bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-800">
-              <h3 className="text-lg font-bold mb-1">Enter Round Score</h3>
-              <p className="text-xs text-slate-500 mb-6">
-                Stableford · 1–45 · Latest 5 kept
+        <div className="flex gap-2 mb-8 border-b border-slate-800 pb-4 overflow-x-auto">
+          {[
+            { id: "scores", label: "Score Entry" },
+            { id: "draws", label: "Draw History" },
+            { id: "winnings", label: "Winnings" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSection(tab.id)}
+              className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                activeSection === tab.id
+                  ? "bg-cyan-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+                  : "text-slate-500 hover:text-white"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── SCORES SECTION ── */}
+        {activeSection === "scores" && (
+          <div className="grid lg:grid-cols-3 gap-10">
+            {/* Score Entry */}
+            <div
+              className={
+                !isActive ? "opacity-30 pointer-events-none select-none" : ""
+              }
+            >
+              <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-4">
+                Score Entry
               </p>
+              <div className="bg-slate-900/50 p-8 rounded-[2.5rem] border border-slate-800">
+                <h3 className="text-lg font-bold mb-1">Enter Round Score</h3>
+                <p className="text-xs text-slate-500 mb-6">
+                  Stableford · 1–45 · Latest 5 kept
+                </p>
 
-              {error && (
-                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm font-medium">
-                  {error}
-                </div>
-              )}
-              {success && (
-                <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-sm font-bold">
-                  {success}
-                </div>
-              )}
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm font-medium">
+                    {error}
+                  </div>
+                )}
+                {success && (
+                  <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-sm font-bold">
+                    {success}
+                  </div>
+                )}
 
-              <form onSubmit={handleSubmitScore} className="space-y-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                    Score (1–45)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="45"
-                    required
-                    value={newScore}
-                    onChange={(e) => setNewScore(e.target.value)}
-                    placeholder="e.g. 32"
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl focus:border-cyan-500 outline-none transition-all font-bold text-lg"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
-                    Round Date
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={scoreDate}
-                    max={new Date().toISOString().split("T")[0]}
-                    onChange={(e) => setScoreDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl focus:border-cyan-500 outline-none transition-all text-white font-bold"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full bg-cyan-500 text-black font-black py-4 rounded-2xl hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all uppercase tracking-tighter disabled:opacity-50"
-                >
-                  {submitting ? "Submitting…" : "Submit to Rolling 5"}
-                </button>
-              </form>
+                <form onSubmit={handleSubmitScore} className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
+                      Score (1–45)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="45"
+                      required
+                      value={newScore}
+                      onChange={(e) => setNewScore(e.target.value)}
+                      placeholder="e.g. 32"
+                      className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl focus:border-cyan-500 outline-none transition-all font-bold text-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 block">
+                      Round Date
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={scoreDate}
+                      max={new Date().toISOString().split("T")[0]}
+                      onChange={(e) => setScoreDate(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl focus:border-cyan-500 outline-none transition-all text-white font-bold"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full bg-cyan-500 text-black font-black py-4 rounded-2xl hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all uppercase tracking-tighter disabled:opacity-50"
+                  >
+                    {submitting ? "Submitting…" : "Submit to Rolling 5"}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Scores display */}
+            <div className="lg:col-span-2">
+              <div className="flex justify-between items-end mb-4">
+                <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">
+                  Performance History
+                </p>
+                <p className="text-[10px] text-slate-600 italic font-bold uppercase">
+                  Latest 5 rounds retained
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                {scores.map((s, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.07 }}
+                    className="aspect-square flex flex-col items-center justify-center bg-slate-900/30 border border-slate-800 rounded-[2rem] relative group overflow-hidden"
+                  >
+                    <div className="text-4xl font-black text-cyan-400">
+                      {s.value}
+                    </div>
+                    <div className="text-[9px] text-slate-500 font-black uppercase tracking-tighter mt-1">
+                      {s.date}
+                    </div>
+                    <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </motion.div>
+                ))}
+                {scores.length === 0 && (
+                  <div className="col-span-full py-14 text-center border-2 border-dashed border-slate-800 rounded-[2.5rem] text-slate-600 font-mono text-xs uppercase tracking-widest">
+                    No scores yet — submit your first round
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+        )}
 
-          {/* ── Scores + Stats ── */}
-          <div className="lg:col-span-2">
-            <div className="flex justify-between items-end mb-4">
-              <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">
-                Performance History
-              </p>
-              <p className="text-[10px] text-slate-600 italic font-bold uppercase">
-                Latest 5 rounds retained
-              </p>
-            </div>
+        {activeSection === "draws" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-6">
+              Past Draws · Your Participation
+            </p>
+            <DrawHistory userId={user?.id} />
+          </motion.div>
+        )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-              {scores.map((s, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.07 }}
-                  className="aspect-square flex flex-col items-center justify-center bg-slate-900/30 border border-slate-800 rounded-[2rem] relative group overflow-hidden"
-                >
-                  <div className="text-4xl font-black text-cyan-400">
-                    {s.value}
-                  </div>
-                  <div className="text-[9px] text-slate-500 font-black uppercase tracking-tighter mt-1">
-                    {s.date}
-                  </div>
-                  <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </motion.div>
-              ))}
-              {scores.length === 0 && (
-                <div className="col-span-full py-14 text-center border-2 border-dashed border-slate-800 rounded-[2.5rem] text-slate-600 font-mono text-xs uppercase tracking-widest">
-                  No scores yet — submit your first round
-                </div>
-              )}
-            </div>
-
-            {/* Winnings summary */}
-            <div className="mt-10 grid grid-cols-2 gap-5">
+        {/* ── WINNINGS SECTION ── */}
+        {activeSection === "winnings" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className="grid sm:grid-cols-2 gap-5 mb-8">
               <div className="bg-slate-900/50 p-7 rounded-[2.5rem] border border-slate-800">
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
                   Total Winnings
@@ -323,15 +451,14 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Winner proof upload — only shown when payout is Pending */}
             {profile?.payout_status === "Pending" && (
               <WinnerProofUpload
                 userId={user?.id}
                 onDone={() => fetchUserData(user?.id)}
               />
             )}
-          </div>
-        </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );
