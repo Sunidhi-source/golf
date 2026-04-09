@@ -14,16 +14,16 @@ import Dashboard from "./pages/Dashboard";
 import AdminPanel from "./pages/AdminPanel";
 import Pricing from "./components/Pricing";
 
-// Guards the /admin route — checks BOTH auth AND admin email at the route level.
-// Client-side navigate() alone is not security; this catches direct URL entry.
-const AdminRoute = ({ user, children }) => {
+const AdminRoute = ({ user, loading, children }) => {
   const ADMIN_EMAIL = process.env.REACT_APP_ADMIN_EMAIL;
+  if (loading) return <div className="min-h-screen bg-[#020617]" />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.email !== ADMIN_EMAIL) return <Navigate to="/dashboard" replace />;
   return children;
 };
 
-const ProtectedRoute = ({ user, children }) => {
+const ProtectedRoute = ({ user, loading, children }) => {
+  if (loading) return <div className="min-h-screen bg-[#020617]" />;
   if (!user) return <Navigate to="/login" replace />;
   return children;
 };
@@ -45,8 +45,6 @@ function App() {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  if (loading) return <div className="min-h-screen bg-[#020617]" />;
-
   return (
     <Router>
       <div className="min-h-screen bg-[#020617] text-white font-sans selection:bg-cyan-500/30">
@@ -59,7 +57,7 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute user={user}>
+              <ProtectedRoute user={user} loading={loading}>
                 <Dashboard />
               </ProtectedRoute>
             }
@@ -68,7 +66,7 @@ function App() {
           <Route
             path="/admin"
             element={
-              <AdminRoute user={user}>
+              <AdminRoute user={user} loading={loading}>
                 <AdminPanel />
               </AdminRoute>
             }

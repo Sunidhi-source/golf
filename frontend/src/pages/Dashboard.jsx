@@ -4,6 +4,17 @@ import { supabase } from "../supabaseClient";
 
 const API = process.env.REACT_APP_API_URL;
 
+const getAuthHeaders = async () => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return {};
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${session.access_token}`,
+  };
+};
+
 const WinnerProofUpload = ({ userId, onDone }) => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -70,9 +81,7 @@ const DrawHistory = ({ userId }) => {
   useEffect(() => {
     fetch(`${API}/api/draw/history`)
       .then((r) => r.json())
-      .then((data) => {
-        setDraws(Array.isArray(data) ? data : []);
-      })
+      .then((data) => setDraws(Array.isArray(data) ? data : []))
       .catch(() => setDraws([]))
       .finally(() => setLoading(false));
   }, []);
@@ -155,6 +164,114 @@ const DrawHistory = ({ userId }) => {
   );
 };
 
+const ParticipationSummary = ({ scores, profile }) => {
+  const hasEnoughScores = scores.length >= 3;
+  const isActive = profile?.subscription_status === "active";
+
+  const now = new Date();
+  const nextDraw = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const daysUntilDraw = Math.ceil((nextDraw - now) / (1000 * 60 * 60 * 24));
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-6"
+    >
+      <div className="grid sm:grid-cols-3 gap-5">
+        {/* Entry status */}
+        <div
+          className={`p-7 rounded-[2.5rem] border ${
+            isActive && hasEnoughScores
+              ? "bg-cyan-500/10 border-cyan-500/30"
+              : "bg-slate-900/50 border-slate-800"
+          }`}
+        >
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+            Draw Entry Status
+          </p>
+          <p
+            className={`text-xl font-black uppercase ${
+              isActive && hasEnoughScores ? "text-cyan-400" : "text-red-400"
+            }`}
+          >
+            {!isActive
+              ? "Not Subscribed"
+              : !hasEnoughScores
+                ? "Needs Scores"
+                : "Entered ✓"}
+          </p>
+          <p className="text-slate-500 text-xs mt-2">
+            {!isActive
+              ? "Subscribe to enter draws"
+              : !hasEnoughScores
+                ? `Need at least 3 scores (have ${scores.length})`
+                : "You're entered in the next draw"}
+          </p>
+        </div>
+
+        <div className="p-7 rounded-[2.5rem] border border-slate-800 bg-slate-900/50">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+            Next Draw
+          </p>
+          <p className="text-4xl font-black text-white">{daysUntilDraw}</p>
+          <p className="text-slate-500 text-xs mt-2">
+            days until{" "}
+            {nextDraw.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+            })}
+          </p>
+        </div>
+
+        {/* Scores entered */}
+        <div className="p-7 rounded-[2.5rem] border border-slate-800 bg-slate-900/50">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+            Scores Submitted
+          </p>
+          <p className="text-4xl font-black text-white">{scores.length}/5</p>
+          <p className="text-slate-500 text-xs mt-2">
+            {scores.length === 5
+              ? "Rolling 5 complete"
+              : `${5 - scores.length} more to complete your entry`}
+          </p>
+        </div>
+      </div>
+
+      {/* How draws work reminder */}
+      <div className="p-6 bg-slate-900/30 border border-slate-800 rounded-[2rem]">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">
+          How Your Entry Works
+        </p>
+        <div className="grid sm:grid-cols-3 gap-4 text-xs text-slate-400">
+          <div className="flex items-start gap-3">
+            <span className="text-cyan-400 font-black text-lg leading-none">
+              1
+            </span>
+            <p>
+              Your latest 5 Stableford scores form your draw entry each month.
+            </p>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-cyan-400 font-black text-lg leading-none">
+              2
+            </span>
+            <p>5 numbers are drawn. Match 3, 4, or 5 to win your prize tier.</p>
+          </div>
+          <div className="flex items-start gap-3">
+            <span className="text-cyan-400 font-black text-lg leading-none">
+              3
+            </span>
+            <p>
+              Winners verify their scores. Prizes are split equally per tier.
+            </p>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const Dashboard = () => {
   const [scores, setScores] = useState([]);
   const [newScore, setNewScore] = useState("");
@@ -167,12 +284,14 @@ const Dashboard = () => {
   const [success, setSuccess] = useState("");
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  // FIX: Track which tab is shown — PRD §10 requires participation summary as a module
   const [activeSection, setActiveSection] = useState("scores");
 
   const fetchUserData = useCallback(async (userId) => {
     try {
-      const res = await fetch(`${API}/api/users/profile/${userId}`);
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API}/api/users/profile/${userId}`, {
+        headers,
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setProfile(data);
@@ -215,9 +334,10 @@ const Dashboard = () => {
 
     setSubmitting(true);
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch(`${API}/api/users/update-score/${user.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ newScore: { value: val, date: scoreDate } }),
       });
       const data = await res.json();
@@ -243,10 +363,17 @@ const Dashboard = () => {
 
   const isActive = profile?.subscription_status === "active";
 
+  const renewalDate = profile?.renewal_date
+    ? new Date(profile.renewal_date).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
   return (
     <div className="min-h-screen bg-[#020617] text-white pt-32 pb-20 px-6">
       <div className="max-w-6xl mx-auto">
-        {/* ── Charity Impact Banner ── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -273,6 +400,11 @@ const Dashboard = () => {
             >
               {profile?.subscription_status || "Inactive"}
             </p>
+            {isActive && renewalDate && (
+              <p className="text-slate-500 text-xs mt-1">
+                Renews {renewalDate}
+              </p>
+            )}
             {!isActive && (
               <a
                 href="/pricing"
@@ -287,6 +419,7 @@ const Dashboard = () => {
         <div className="flex gap-2 mb-8 border-b border-slate-800 pb-4 overflow-x-auto">
           {[
             { id: "scores", label: "Score Entry" },
+            { id: "participation", label: "Participation" },
             { id: "draws", label: "Draw History" },
             { id: "winnings", label: "Winnings" },
           ].map((tab) => (
@@ -304,10 +437,8 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* ── SCORES SECTION ── */}
         {activeSection === "scores" && (
           <div className="grid lg:grid-cols-3 gap-10">
-            {/* Score Entry */}
             <div
               className={
                 !isActive ? "opacity-30 pointer-events-none select-none" : ""
@@ -373,7 +504,6 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Scores display */}
             <div className="lg:col-span-2">
               <div className="flex justify-between items-end mb-4">
                 <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">
@@ -412,6 +542,10 @@ const Dashboard = () => {
           </div>
         )}
 
+        {activeSection === "participation" && (
+          <ParticipationSummary scores={scores} profile={profile} />
+        )}
+
         {activeSection === "draws" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest mb-6">
@@ -421,7 +555,6 @@ const Dashboard = () => {
           </motion.div>
         )}
 
-        {/* ── WINNINGS SECTION ── */}
         {activeSection === "winnings" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="grid sm:grid-cols-2 gap-5 mb-8">
