@@ -235,6 +235,6 @@ Event to listen for: `checkout.session.completed`
 
 ---
 
-##👩‍💻 Built by
+## Built by
 
-Sunidhi Sharma
+👩‍💻Sunidhi Sharma
