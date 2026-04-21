@@ -4,6 +4,15 @@ import { supabase } from "../supabaseClient";
 
 const API = process.env.REACT_APP_API_URL;
 
+// Helper: get auth headers with current Supabase session token
+const getAuthHeaders = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  return token
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+    : { "Content-Type": "application/json" };
+};
+
 const StatCard = ({ label, value, accent }) => (
   <div className="text-right">
     <p className="text-[10px] text-slate-500 uppercase font-black mb-1 tracking-widest">
@@ -73,9 +82,10 @@ const ScoreEditor = ({ user, onSaved, onCancel }) => {
     setErr("");
     setSaving(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(`${API}/api/users/admin/edit-scores/${user.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({ scores }),
       });
       const data = await res.json();
@@ -188,7 +198,8 @@ const AdminPanel = () => {
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
-      const res = await fetch(`${API}/api/users/admin/all`);
+      const authHeaders = await getAuthHeaders();
+      const res = await fetch(`${API}/api/users/admin/all`, { headers: authHeaders });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setUsers(data || []);
@@ -315,11 +326,12 @@ const AdminPanel = () => {
   const handleVerify = async (userId, status) => {
     setUsersToast({ msg: "", type: "" });
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(
         `${API}/api/users/admin/verify-winner/${userId}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders,
           body: JSON.stringify({ status }),
         },
       );
@@ -336,8 +348,10 @@ const AdminPanel = () => {
     if (!window.confirm(`Permanently delete ${email}? This cannot be undone.`))
       return;
     try {
+      const authHeaders = await getAuthHeaders();
       const res = await fetch(`${API}/api/users/admin/delete/${userId}`, {
         method: "DELETE",
+        headers: authHeaders,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");

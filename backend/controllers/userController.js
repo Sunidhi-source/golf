@@ -26,7 +26,7 @@ exports.getUserProfile = async (req, res) => {
 
   if (error) {
     console.error("getUserProfile error:", error.message);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, details: error });
   }
   return res.status(200).json(data);
 };
@@ -36,14 +36,14 @@ exports.getAllUsers = async (req, res) => {
     .from("profiles")
     .select(
       `id, email, subscription_status, subscription_plan, golf_scores,
-       charity_percent, payout_status, total_winnings, created_at,
+       charity_id, charity_percent, payout_status, total_winnings, created_at,
        charities ( name )`,
     )
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("getAllUsers error:", error.message);
-    return res.status(500).json({ error: error.message });
+    console.error("getAllUsers error:", JSON.stringify(error));
+    return res.status(500).json({ error: error.message, details: error });
   }
   return res.status(200).json(data);
 };
@@ -144,7 +144,7 @@ exports.adminEditScores = async (req, res) => {
     .eq("id", userId);
 
   if (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, details: error });
   }
   return res
     .status(200)
@@ -180,7 +180,7 @@ exports.updateWinnerStatus = async (req, res) => {
     .eq("id", userId);
 
   if (error) {
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message, details: error });
   }
   return res
     .status(200)
