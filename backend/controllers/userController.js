@@ -19,7 +19,7 @@ exports.getUserProfile = async (req, res) => {
     .select(
       `id, email, subscription_status, subscription_plan, golf_scores,
        charity_id, charity_percent, payout_status, total_winnings,
-       created_at, charities ( name )`,
+       created_at, charities!profiles_charity_fk ( name )`,
     )
     .eq("id", userId)
     .single();
@@ -37,7 +37,7 @@ exports.getAllUsers = async (req, res) => {
     .select(
       `id, email, subscription_status, subscription_plan, golf_scores,
        charity_id, charity_percent, payout_status, total_winnings, created_at,
-       charities ( name )`,
+       charities!profiles_charity_fk ( name )`,
     )
     .order("created_at", { ascending: false });
 
